@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "903048075075",
+    "project_id": "congressional-app-challe-983a5",
+    "storage_bucket": "congressional-app-challe-983a5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:903048075075:android:909983c7c52753589a81f6",
+        "android_client_info": {
+          "package_name": "com.example.first_flutter_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWlT-UheeiDejC9PPaEwEhMCGfebjurTU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
