@@ -21,17 +21,17 @@ class RoleSelectScreen extends StatelessWidget {
                   size: 64, color: AppColors.primary),
               const SizedBox(height: 16),
               const Text(
-                'FoodRescue',
+                'ShareMeal',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+                  color: AppColors.accent,
                   letterSpacing: 1.2,
                 ),
               ),
               const SizedBox(height: 8),
               const Text(
-                'Connecting surplus food with people who need it.',
+                'Everyone deserves a meal.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     color: AppColors.textSecondary, fontSize: 15),
@@ -58,7 +58,7 @@ class RoleSelectScreen extends StatelessWidget {
               const SizedBox(height: 16),
               _RoleCard(
                 icon: Icons.person_outline,
-                title: 'I Need Food',
+                title: 'Person in Need of Food',
                 subtitle: 'Find free meals near me',
                 color: AppColors.accent,
                 onTap: () => Navigator.push(
