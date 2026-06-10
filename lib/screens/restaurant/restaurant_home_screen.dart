@@ -58,7 +58,9 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
   Widget build(BuildContext context) {
     final restaurant = context.watch<RestaurantProvider>().myRestaurant;
 
-    return Scaffold(
+    return Theme(
+      data: buildRestaurantTheme(),
+      child: Scaffold(
       body: Column(
         children: [
           if (restaurant != null && !restaurant.isVerified)
@@ -92,6 +94,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

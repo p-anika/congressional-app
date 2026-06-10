@@ -1,32 +1,83 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/food_listing.dart';
 import '../../providers/food_listing_provider.dart';
-import '../../providers/restaurant_provider.dart';
 import '../../theme.dart';
 import '../../widgets/allergen_chips.dart';
 import '../../widgets/food_listing_card.dart';
 
-class RestaurantListingsScreen extends StatelessWidget {
+class RestaurantListingsScreen extends StatefulWidget {
   const RestaurantListingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final restaurant = context.watch<RestaurantProvider>().myRestaurant;
-    final listings = context.watch<FoodListingProvider>().myListings;
+  State<RestaurantListingsScreen> createState() =>
+      _RestaurantListingsScreenState();
+}
 
-    if (restaurant == null) {
+class _RestaurantListingsScreenState extends State<RestaurantListingsScreen> {
+  String? _restaurantId;
+  List<FoodListing> _listings = [];
+  StreamSubscription<QuerySnapshot>? _listingsSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _initListings();
+  }
+
+  Future<void> _initListings() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final snap = await FirebaseFirestore.instance
+        .collection('restaurants')
+        .where('ownerId', isEqualTo: uid)
+        .limit(1)
+        .get();
+
+    if (!mounted || snap.docs.isEmpty) return;
+
+    final restaurantId = snap.docs.first.id;
+    print('RestaurantListingsScreen: restaurantId=$restaurantId for uid=$uid');
+
+    setState(() => _restaurantId = restaurantId);
+
+    _listingsSub = FirebaseFirestore.instance
+        .collection('foodListings')
+        .where('restaurantId', isEqualTo: restaurantId)
+        .where('isAvailable', isEqualTo: true)
+        .snapshots()
+        .listen((snapshot) {
+          if (mounted) {
+            setState(() => _listings =
+                snapshot.docs.map(FoodListing.fromFirestore).toList());
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    _listingsSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_restaurantId == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Listings')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddSheet(context, restaurant.id),
+        onPressed: () => _showAddSheet(context, _restaurantId!),
         icon: const Icon(Icons.add),
         label: const Text('Add Food'),
       ),
-      body: listings.isEmpty
+      body: _listings.isEmpty
           ? const Center(
               child: Text(
                 'No active listings.\nTap + to add available food.',
@@ -36,9 +87,9 @@ class RestaurantListingsScreen extends StatelessWidget {
             )
           : ListView.builder(
               padding: const EdgeInsets.only(bottom: 100),
-              itemCount: listings.length,
+              itemCount: _listings.length,
               itemBuilder: (ctx, i) {
-                final l = listings[i];
+                final l = _listings[i];
                 return FoodListingCard(
                   listing: l,
                   onEdit: () => _showEditSheet(context, l),
@@ -83,8 +134,6 @@ class RestaurantListingsScreen extends StatelessWidget {
               child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              // Soft-delete: set isAvailable=false so it disappears from
-              // the real-time stream without losing the Firestore record.
               context
                   .read<FoodListingProvider>()
                   .updateListing(id, {'isAvailable': false});

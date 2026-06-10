@@ -31,7 +31,9 @@ class RestaurantDetailScreen extends StatelessWidget {
     final allergenConflictCount =
         listings.where((l) => l.hasAllergenConflict(userAllergies)).length;
 
-    return Scaffold(
+    return Theme(
+      data: buildUserTheme(),
+      child: Scaffold(
       appBar: AppBar(title: Text(restaurant.name)),
       body: ListView(
         children: [
@@ -70,6 +72,7 @@ class RestaurantDetailScreen extends StatelessWidget {
           const SizedBox(height: 24),
         ],
       ),
+    ),
     );
   }
 }
@@ -99,13 +102,13 @@ class _InfoCard extends StatelessWidget {
             if (distance != null)
               Row(
                 children: [
-                  const Icon(Icons.directions_walk,
-                      size: 16, color: AppColors.primary),
+                  Icon(Icons.directions_walk,
+                      size: 16, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 4),
                   Text(
                     '${distance!.toStringAsFixed(1)} mi away',
-                    style: const TextStyle(
-                        color: AppColors.primary, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),

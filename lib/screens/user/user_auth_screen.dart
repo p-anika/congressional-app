@@ -84,20 +84,23 @@ class _UserAuthScreenState extends State<UserAuthScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Find Free Food'),
-        bottom: TabBar(
-          controller: _tabs,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: const [Tab(text: 'Log In'), Tab(text: 'Sign Up')],
+    return Theme(
+      data: buildUserTheme(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Find Free Food!'),
+          bottom: TabBar(
+            controller: _tabs,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            tabs: const [Tab(text: 'Log In'), Tab(text: 'Sign Up')],
+          ),
         ),
-      ),
-      body: TabBarView(
-        controller: _tabs,
-        children: [_buildLoginTab(), _buildSignupTab()],
+        body: TabBarView(
+          controller: _tabs,
+          children: [_buildLoginTab(), _buildSignupTab()],
+        ),
       ),
     );
   }
@@ -112,7 +115,7 @@ class _UserAuthScreenState extends State<UserAuthScreen>
           Text('Welcome back',
               style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
-          const Text('Find food being rescued near you',
+          const Text('Find food near you',
               style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 32),
           TextField(
@@ -151,7 +154,7 @@ class _UserAuthScreenState extends State<UserAuthScreen>
           Text('Create an account',
               style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
-          const Text('Free to use — no payment required',
+          const Text('It is free to use!',
               style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 32),
           TextField(

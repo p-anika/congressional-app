@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/location_service.dart';
 import '../../theme.dart';
 import 'restaurant_home_screen.dart';
 
@@ -78,6 +79,14 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
     });
     final auth = context.read<AuthProvider>();
     try {
+      final coords = await LocationService.geocodeAddress(_address.text.trim());
+      if (coords == null) {
+        if (mounted) {
+          setState(() => _error =
+              'Could not find address, please enter a valid address');
+        }
+        return;
+      }
       await auth.signUpRestaurant(
         email: _signupEmail.text.trim(),
         password: _signupPassword.text,
@@ -85,8 +94,8 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
         address: _address.text.trim(),
         contactInfo: _contactInfo.text.trim(),
         hours: _hours.text.trim(),
-        lat: 0.0,
-        lng: 0.0,
+        lat: coords['lat']!,
+        lng: coords['lng']!,
       );
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -196,7 +205,7 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
           TextField(
             controller: _contactInfo,
             decoration: const InputDecoration(
-                labelText: 'Contact Info (e.g. helloWorld@gmail.com 123-456-7890)',
+                labelText: 'Contact Info (e.g. 123-456-7890)',
                 prefixIcon: Icon(Icons.phone_outlined)),
           ),
           const SizedBox(height: 16),

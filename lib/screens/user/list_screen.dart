@@ -103,9 +103,9 @@ class _RestaurantCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              const CircleAvatar(
-                backgroundColor: AppColors.primaryLight,
-                child: Icon(Icons.restaurant, color: Colors.white, size: 20),
+              CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: const Icon(Icons.restaurant, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -126,13 +126,13 @@ class _RestaurantCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.fastfood_outlined,
-                            size: 13, color: AppColors.primary),
+                        Icon(Icons.fastfood_outlined,
+                            size: 13, color: Theme.of(context).colorScheme.primary),
                         const SizedBox(width: 4),
                         Text(
                           '$itemCount item${itemCount == 1 ? '' : 's'} available',
-                          style: const TextStyle(
-                              color: AppColors.primary, fontSize: 12),
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary, fontSize: 12),
                         ),
                         if (distance != null) ...[
                           const SizedBox(width: 10),

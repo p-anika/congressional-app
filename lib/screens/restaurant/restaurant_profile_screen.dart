@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/restaurant.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/restaurant_provider.dart';
+import '../../services/location_service.dart';
 import '../../theme.dart';
 import '../role_select_screen.dart';
 
@@ -17,6 +18,7 @@ class RestaurantProfileScreen extends StatefulWidget {
 class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
   bool _editing = false;
   bool _saving = false;
+  String? _error;
 
   final _name = TextEditingController();
   final _address = TextEditingController();
@@ -60,12 +62,25 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
   }
 
   Future<void> _save() async {
-    setState(() => _saving = true);
-    await context.read<RestaurantProvider>().updateMyRestaurant({
+    setState(() { _saving = true; _error = null; });
+    final provider = context.read<RestaurantProvider>();
+    final coords = await LocationService.geocodeAddress(_address.text.trim());
+    if (coords == null) {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not find address, please enter a valid address';
+          _saving = false;
+        });
+      }
+      return;
+    }
+    await provider.updateMyRestaurant({
       'name': _name.text.trim(),
       'address': _address.text.trim(),
       'contactInfo': _contact.text.trim(),
       'hoursOfOperation': _hours.text.trim(),
+      'lat': coords['lat'],
+      'lng': coords['lng'],
     });
     if (mounted) setState(() { _editing = false; _saving = false; });
   }
@@ -140,6 +155,11 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                     _field('Hours of Operation', _hours,
                         Icons.schedule_outlined),
                     const SizedBox(height: 24),
+                    if (_error != null) ...[
+                      Text(_error!,
+                          style: const TextStyle(color: Colors.red, fontSize: 13)),
+                      const SizedBox(height: 12),
+                    ],
                     _saving
                         ? const Center(child: CircularProgressIndicator())
                         : Row(
