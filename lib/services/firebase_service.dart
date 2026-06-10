@@ -30,6 +30,11 @@ class FirebaseService {
     return _db.collection('users').doc(user.id).set(user.toMap());
   }
 
+  static Future<AppUser?> getUserDocOnce(String uid) async {
+    final snap = await _db.collection('users').doc(uid).get();
+    return snap.exists ? AppUser.fromFirestore(snap) : null;
+  }
+
   static Stream<AppUser?> userStream(String uid) {
     return _db
         .collection('users')
@@ -92,6 +97,16 @@ class FirebaseService {
     return _db.collection('foodListings').doc(id).delete();
   }
 
+  // All listings for a restaurant (restaurant management view — includes unavailable)
+  static Stream<List<FoodListing>> allListingsByRestaurant(String restaurantId) {
+    return _db
+        .collection('foodListings')
+        .where('restaurantId', isEqualTo: restaurantId)
+        .snapshots()
+        .map((snap) => snap.docs.map(FoodListing.fromFirestore).toList());
+  }
+
+  // Active-only listings for a specific restaurant (user-facing)
   static Stream<List<FoodListing>> listingsByRestaurant(String restaurantId) {
     return _db
         .collection('foodListings')

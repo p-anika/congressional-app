@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme.dart';
+import 'user_home_screen.dart';
 
 class UserAuthScreen extends StatefulWidget {
   const UserAuthScreen({super.key});
@@ -38,26 +39,44 @@ class _UserAuthScreenState extends State<UserAuthScreen>
   }
 
   Future<void> _login() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await context
           .read<AuthProvider>()
           .signInUser(_loginEmail.text.trim(), _loginPassword.text);
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const UserHomeScreen()),
+          (_) => false,
+        );
+      }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _signup() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await context
           .read<AuthProvider>()
           .signUpUser(_signupEmail.text.trim(), _signupPassword.text);
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const UserHomeScreen()),
+          (_) => false,
+        );
+      }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -90,7 +109,8 @@ class _UserAuthScreenState extends State<UserAuthScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 24),
-          Text('Welcome back', style: Theme.of(context).textTheme.headlineMedium),
+          Text('Welcome back',
+              style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           const Text('Find food being rescued near you',
               style: TextStyle(color: AppColors.textSecondary)),
@@ -155,8 +175,7 @@ class _UserAuthScreenState extends State<UserAuthScreen>
           _loading
               ? const Center(child: CircularProgressIndicator())
               : ElevatedButton(
-                  onPressed: _signup,
-                  child: const Text('Create Account')),
+                  onPressed: _signup, child: const Text('Create Account')),
         ],
       ),
     );

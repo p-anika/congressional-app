@@ -74,7 +74,7 @@ class AllergenSelector extends StatelessWidget {
             val ? updated.add(a) : updated.remove(a);
             onChanged(updated);
           },
-          selectedColor: AppColors.allergenChip.withOpacity(0.8),
+          selectedColor: AppColors.allergenChip.withValues(alpha: 0.8),
           checkmarkColor: Colors.white,
           labelStyle: TextStyle(
             color: isSelected ? Colors.white : Colors.black87,

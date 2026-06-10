@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/app_user.dart';
@@ -8,6 +9,7 @@ class UserProvider extends ChangeNotifier {
   AppUser? _user;
   double? _userLat;
   double? _userLng;
+  StreamSubscription? _userSub;
 
   AppUser? get user => _user;
   double? get userLat => _userLat;
@@ -15,14 +17,15 @@ class UserProvider extends ChangeNotifier {
   List<String> get allergies => _user?.allergies ?? [];
 
   void listenToUser(String uid) {
-    FirebaseService.userStream(uid).listen((u) {
+    _userSub?.cancel();
+    _userSub = FirebaseService.userStream(uid).listen((u) {
       _user = u;
       if (u?.location != null) {
         _userLat = u!.location!.latitude;
         _userLng = u.location!.longitude;
       }
       notifyListeners();
-    });
+    }, onError: (_) {});
   }
 
   Future<void> refreshLocation() async {
@@ -44,5 +47,11 @@ class UserProvider extends ChangeNotifier {
   Future<void> updatePhone(String phone) async {
     if (_user == null) return;
     await FirebaseService.updateUserDoc(_user!.id, {'phone': phone});
+  }
+
+  @override
+  void dispose() {
+    _userSub?.cancel();
+    super.dispose();
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:geocoding/geocoding.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme.dart';
+import 'restaurant_home_screen.dart';
 
 class RestaurantAuthScreen extends StatefulWidget {
   const RestaurantAuthScreen({super.key});
@@ -50,43 +50,52 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
   }
 
   Future<void> _login() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await context
           .read<AuthProvider>()
           .signInRestaurant(_loginEmail.text.trim(), _loginPassword.text);
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const RestaurantHomeScreen()),
+          (_) => false,
+        );
+      }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _signup() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     final auth = context.read<AuthProvider>();
     try {
-      double lat = 0, lng = 0;
-      try {
-        final locations = await locationFromAddress(_address.text.trim());
-        if (locations.isNotEmpty) {
-          lat = locations.first.latitude;
-          lng = locations.first.longitude;
-        }
-      } catch (_) {}
-
       await auth.signUpRestaurant(
-            email: _signupEmail.text.trim(),
-            password: _signupPassword.text,
-            restaurantName: _restaurantName.text.trim(),
-            address: _address.text.trim(),
-            contactInfo: _contactInfo.text.trim(),
-            hours: _hours.text.trim(),
-            lat: lat,
-            lng: lng,
-          );
+        email: _signupEmail.text.trim(),
+        password: _signupPassword.text,
+        restaurantName: _restaurantName.text.trim(),
+        address: _address.text.trim(),
+        contactInfo: _contactInfo.text.trim(),
+        hours: _hours.text.trim(),
+        lat: 0.0,
+        lng: 0.0,
+      );
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const RestaurantHomeScreen()),
+          (_) => false,
+        );
+      }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -180,7 +189,8 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
           TextField(
             controller: _address,
             decoration: const InputDecoration(
-                labelText: 'Address', prefixIcon: Icon(Icons.location_on_outlined)),
+                labelText: 'Address',
+                prefixIcon: Icon(Icons.location_on_outlined)),
           ),
           const SizedBox(height: 16),
           TextField(

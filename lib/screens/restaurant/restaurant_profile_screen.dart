@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/restaurant.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/restaurant_provider.dart';
 import '../../theme.dart';
+import '../role_select_screen.dart';
 
 class RestaurantProfileScreen extends StatefulWidget {
   const RestaurantProfileScreen({super.key});
@@ -16,28 +18,45 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
   bool _editing = false;
   bool _saving = false;
 
-  late TextEditingController _name;
-  late TextEditingController _address;
-  late TextEditingController _contact;
-  late TextEditingController _hours;
+  final _name = TextEditingController();
+  final _address = TextEditingController();
+  final _contact = TextEditingController();
+  final _hours = TextEditingController();
+
+  late RestaurantProvider _restaurantProvider;
 
   @override
   void initState() {
     super.initState();
-    final r = context.read<RestaurantProvider>().myRestaurant;
-    _name = TextEditingController(text: r?.name ?? '');
-    _address = TextEditingController(text: r?.address ?? '');
-    _contact = TextEditingController(text: r?.contactInfo ?? '');
-    _hours = TextEditingController(text: r?.hoursOfOperation ?? '');
+    _restaurantProvider = context.read<RestaurantProvider>();
+    // Pre-fill if restaurant is already loaded (e.g. app restart with session)
+    _syncControllers(_restaurantProvider.myRestaurant);
+    // Listen for the first load and any subsequent Firestore updates
+    _restaurantProvider.addListener(_onRestaurantChanged);
   }
 
   @override
   void dispose() {
+    _restaurantProvider.removeListener(_onRestaurantChanged);
     _name.dispose();
     _address.dispose();
     _contact.dispose();
     _hours.dispose();
     super.dispose();
+  }
+
+  void _onRestaurantChanged() {
+    // Only overwrite the controllers when we're not mid-edit
+    if (_editing || _saving) return;
+    _syncControllers(_restaurantProvider.myRestaurant);
+  }
+
+  void _syncControllers(Restaurant? restaurant) {
+    if (restaurant == null) return;
+    _name.text = restaurant.name;
+    _address.text = restaurant.address;
+    _contact.text = restaurant.contactInfo;
+    _hours.text = restaurant.hoursOfOperation;
   }
 
   Future<void> _save() async {
@@ -58,7 +77,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Restaurant Profile'),
+        title: const Text('My Info'),
         actions: [
           if (!_editing)
             IconButton(
@@ -67,7 +86,15 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
             ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: auth.signOut,
+            onPressed: () async {
+              await auth.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const RoleSelectScreen()),
+                  (_) => false,
+                );
+              }
+            },
             tooltip: 'Sign out',
           ),
         ],
@@ -110,7 +137,8 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                     const SizedBox(height: 14),
                     _field('Contact Info', _contact, Icons.phone_outlined),
                     const SizedBox(height: 14),
-                    _field('Hours of Operation', _hours, Icons.schedule_outlined),
+                    _field('Hours of Operation', _hours,
+                        Icons.schedule_outlined),
                     const SizedBox(height: 24),
                     _saving
                         ? const Center(child: CircularProgressIndicator())
@@ -145,7 +173,9 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                           ? Icons.verified_outlined
                           : Icons.pending_outlined,
                       'Status',
-                      restaurant.isVerified ? 'Verified' : 'Pending verification',
+                      restaurant.isVerified
+                          ? 'Verified'
+                          : 'Pending verification',
                       valueColor: restaurant.isVerified
                           ? AppColors.primary
                           : AppColors.warning,

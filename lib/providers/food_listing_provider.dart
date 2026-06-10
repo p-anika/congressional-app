@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/food_listing.dart';
 import '../services/firebase_service.dart';
@@ -5,6 +6,8 @@ import '../services/firebase_service.dart';
 class FoodListingProvider extends ChangeNotifier {
   List<FoodListing> _myListings = [];
   List<FoodListing> _allListings = [];
+  StreamSubscription? _myListingsSub;
+  StreamSubscription? _allListingsSub;
 
   List<FoodListing> get myListings => _myListings;
   List<FoodListing> get allListings => _allListings;
@@ -14,17 +17,22 @@ class FoodListingProvider extends ChangeNotifier {
   }
 
   void listenToMyListings(String restaurantId) {
-    FirebaseService.listingsByRestaurant(restaurantId).listen((list) {
+    _myListingsSub?.cancel();
+    // Restaurant management view shows only active (isAvailable=true) listings.
+    // Soft-deleting sets isAvailable=false which removes the item from this stream.
+    _myListingsSub =
+        FirebaseService.listingsByRestaurant(restaurantId).listen((list) {
       _myListings = list;
       notifyListeners();
-    });
+    }, onError: (_) {});
   }
 
   void listenToAllListings() {
-    FirebaseService.allActiveListings().listen((list) {
+    _allListingsSub?.cancel();
+    _allListingsSub = FirebaseService.allActiveListings().listen((list) {
       _allListings = list;
       notifyListeners();
-    });
+    }, onError: (_) {});
   }
 
   Future<void> addListing({
@@ -64,5 +72,12 @@ class FoodListingProvider extends ChangeNotifier {
 
   Future<void> updateListing(String id, Map<String, dynamic> data) async {
     await FirebaseService.updateFoodListing(id, data);
+  }
+
+  @override
+  void dispose() {
+    _myListingsSub?.cancel();
+    _allListingsSub?.cancel();
+    super.dispose();
   }
 }

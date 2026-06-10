@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../theme.dart';
 import '../../widgets/allergen_chips.dart';
+import '../role_select_screen.dart';
 
 class MyInfoScreen extends StatefulWidget {
   const MyInfoScreen({super.key});
@@ -33,7 +34,15 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: auth.signOut,
+            onPressed: () async {
+              await auth.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const RoleSelectScreen()),
+                  (_) => false,
+                );
+              }
+            },
             tooltip: 'Sign out',
           ),
         ],

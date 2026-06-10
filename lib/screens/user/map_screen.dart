@@ -1,6 +1,6 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../models/restaurant.dart';
 import '../../providers/food_listing_provider.dart';
@@ -19,17 +19,15 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  final Completer<GoogleMapController> _controller = Completer();
-  CameraPosition _initialCamera = const CameraPosition(
-    target: LatLng(37.7749, -122.4194),
-    zoom: 12,
-  );
-  Set<Marker> _markers = {};
+  final MapController _mapController = MapController();
+  static final _defaultCenter = LatLng(37.7749, -122.4194);
+  late LatLng _center;
   bool _locationLoaded = false;
 
   @override
   void initState() {
     super.initState();
+    _center = _defaultCenter;
     _initLocation();
   }
 
@@ -42,42 +40,20 @@ class _MapScreenState extends State<MapScreen> {
     final lat = userProvider.userLat;
     final lng = userProvider.userLng;
     if (lat != null && lng != null) {
-      _initialCamera = CameraPosition(target: LatLng(lat, lng), zoom: 13);
-      final ctrl = await _controller.future;
-      ctrl.animateCamera(CameraUpdate.newCameraPosition(_initialCamera));
+      _center = LatLng(lat, lng);
+      _mapController.move(_center, 13);
     }
     setState(() => _locationLoaded = true);
-    _buildMarkers();
-  }
-
-  void _buildMarkers() {
-    final restaurants = context.read<RestaurantProvider>().verifiedRestaurants;
-    final listings = context.read<FoodListingProvider>().allListings;
-    final activeRestaurantIds =
-        listings.map((l) => l.restaurantId).toSet();
-
-    setState(() {
-      _markers = restaurants
-          .where((r) => activeRestaurantIds.contains(r.id))
-          .map((r) => Marker(
-                markerId: MarkerId(r.id),
-                position: LatLng(r.lat, r.lng),
-                infoWindow: InfoWindow(title: r.name, snippet: r.hoursOfOperation),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueGreen),
-                onTap: () => _showRestaurantSheet(r),
-              ))
-          .toSet();
-    });
   }
 
   void _showRestaurantSheet(Restaurant restaurant) {
     final listings = context
         .read<FoodListingProvider>()
         .listingsForRestaurant(restaurant.id);
-    final userAllergies = context.read<UserProvider>().allergies;
-    final userLat = context.read<UserProvider>().userLat;
-    final userLng = context.read<UserProvider>().userLng;
+    final userProvider = context.read<UserProvider>();
+    final userAllergies = userProvider.allergies;
+    final userLat = userProvider.userLat;
+    final userLng = userProvider.userLng;
 
     double? distance;
     if (userLat != null && userLng != null) {
@@ -152,10 +128,28 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Rebuild markers when providers update
-    context.watch<RestaurantProvider>();
-    context.watch<FoodListingProvider>();
-    if (_locationLoaded) _buildMarkers();
+    final restaurants =
+        context.watch<RestaurantProvider>().verifiedRestaurants;
+    final allListings = context.watch<FoodListingProvider>().allListings;
+    final activeIds = allListings.map((l) => l.restaurantId).toSet();
+
+    final markers = restaurants
+        .where((r) =>
+            activeIds.contains(r.id) && (r.lat != 0.0 || r.lng != 0.0))
+        .map((r) => Marker(
+              point: LatLng(r.lat, r.lng),
+              width: 44,
+              height: 44,
+              child: GestureDetector(
+                onTap: () => _showRestaurantSheet(r),
+                child: const Icon(
+                  Icons.location_pin,
+                  color: AppColors.primary,
+                  size: 44,
+                ),
+              ),
+            ))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -168,12 +162,36 @@ class _MapScreenState extends State<MapScreen> {
           ),
         ],
       ),
-      body: GoogleMap(
-        initialCameraPosition: _initialCamera,
-        markers: _markers,
-        myLocationEnabled: true,
-        myLocationButtonEnabled: false,
-        onMapCreated: (ctrl) => _controller.complete(ctrl),
+      body: FlutterMap(
+        mapController: _mapController,
+        options: MapOptions(
+          initialCenter: _center,
+          initialZoom: 12,
+        ),
+        children: [
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.congressional_app.app',
+          ),
+          if (_locationLoaded)
+            CircleLayer(
+              circles: [
+                if (context.read<UserProvider>().userLat != null)
+                  CircleMarker(
+                    point: LatLng(
+                      context.read<UserProvider>().userLat!,
+                      context.read<UserProvider>().userLng!,
+                    ),
+                    radius: 8,
+                    color: AppColors.primary.withValues(alpha: 0.6),
+                    borderColor: Colors.white,
+                    borderStrokeWidth: 2,
+                    useRadiusInMeter: false,
+                  ),
+              ],
+            ),
+          MarkerLayer(markers: markers),
+        ],
       ),
     );
   }

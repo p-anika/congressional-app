@@ -74,19 +74,23 @@ class RestaurantListingsScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete listing?'),
-        content: const Text('This will remove the listing permanently.'),
+        title: const Text('Remove listing?'),
+        content: const Text(
+            'This will mark the listing as unavailable and remove it from the map.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              context.read<FoodListingProvider>().deleteListing(id);
+              // Soft-delete: set isAvailable=false so it disappears from
+              // the real-time stream without losing the Firestore record.
+              context
+                  .read<FoodListingProvider>()
+                  .updateListing(id, {'isAvailable': false});
               Navigator.pop(ctx);
             },
-            child:
-                const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

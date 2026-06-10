@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/food_listing_provider.dart';
 import '../../providers/restaurant_provider.dart';
+import '../../providers/user_provider.dart';
 import 'map_screen.dart';
 import 'list_screen.dart';
 import 'my_info_screen.dart';
@@ -25,6 +27,10 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   @override
   void initState() {
     super.initState();
+    final uid = context.read<AuthProvider>().firebaseUser?.uid;
+    if (uid != null) {
+      context.read<UserProvider>().listenToUser(uid);
+    }
     context.read<RestaurantProvider>().listenToVerifiedRestaurants();
     context.read<FoodListingProvider>().listenToAllListings();
   }

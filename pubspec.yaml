@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.12.0
+  sdk: ^3.5.0
 
 dependencies:
   flutter:
@@ -17,9 +17,9 @@ dependencies:
   cloud_firestore: ^5.4.3
 
   # Maps & Location
-  google_maps_flutter: ^2.9.0
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
   geolocator: ^13.0.2
-  geocoding: ^3.0.0
 
   # State Management
   provider: ^6.1.2
