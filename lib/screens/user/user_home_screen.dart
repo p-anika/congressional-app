@@ -1,6 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/food_listing_provider.dart';
 import '../../providers/restaurant_provider.dart';
 import '../../providers/user_provider.dart';
@@ -27,7 +27,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   @override
   void initState() {
     super.initState();
-    final uid = context.read<AuthProvider>().firebaseUser?.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       context.read<UserProvider>().listenToUser(uid);
     }

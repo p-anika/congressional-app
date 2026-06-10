@@ -36,13 +36,16 @@ class FirebaseService {
   }
 
   static Stream<AppUser?> userStream(String uid) {
+    print('userStream called for uid: $uid');
     return _db
         .collection('users')
         .doc(uid)
         .snapshots()
-        .map((snap) => snap.exists ? AppUser.fromFirestore(snap) : null);
+        .map((snap) {
+          print('userStream snapshot received: exists=${snap.exists}, data=${snap.data()}');
+          return snap.exists ? AppUser.fromFirestore(snap) : null;
+        });
   }
-
   static Future<void> updateUserDoc(String uid, Map<String, dynamic> data) {
     return _db.collection('users').doc(uid).update(data);
   }
