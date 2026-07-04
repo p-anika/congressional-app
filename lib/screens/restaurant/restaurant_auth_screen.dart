@@ -29,6 +29,8 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
   final _address = TextEditingController();
   final _contactInfo = TextEditingController();
   final _hours = TextEditingController();
+  final _lastYearRevenue = TextEditingController();
+  final _projectedGrowth = TextEditingController();
 
   @override
   void initState() {
@@ -47,6 +49,8 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
     _address.dispose();
     _contactInfo.dispose();
     _hours.dispose();
+    _lastYearRevenue.dispose();
+    _projectedGrowth.dispose();
     super.dispose();
   }
 
@@ -96,6 +100,10 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
         hours: _hours.text.trim(),
         lat: coords['lat']!,
         lng: coords['lng']!,
+        lastYearRevenue:
+            double.tryParse(_lastYearRevenue.text.trim()) ?? 0.0,
+        projectedGrowth:
+            double.tryParse(_projectedGrowth.text.trim()) ?? 0.0,
       );
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -214,6 +222,24 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
             decoration: const InputDecoration(
                 labelText: 'Hours of Operation (e.g. Mon-Fri 9am-9pm)',
                 prefixIcon: Icon(Icons.schedule_outlined)),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _lastYearRevenue,
+            decoration: const InputDecoration(
+                labelText: "Last Year's Revenue (\$)",
+                prefixIcon: Icon(Icons.attach_money)),
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _projectedGrowth,
+            decoration: const InputDecoration(
+                labelText: 'Projected Revenue Growth This Year (%)',
+                prefixIcon: Icon(Icons.trending_up)),
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
           ),
           const Divider(height: 32),
           TextField(

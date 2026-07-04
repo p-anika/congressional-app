@@ -10,6 +10,8 @@ class Restaurant {
   final String hoursOfOperation;
   final bool isVerified;
   final String ownerId;
+  final double? lastYearRevenue;
+  final double? projectedGrowth;
 
   Restaurant({
     required this.id,
@@ -21,6 +23,8 @@ class Restaurant {
     required this.hoursOfOperation,
     required this.isVerified,
     required this.ownerId,
+    this.lastYearRevenue,
+    this.projectedGrowth,
   });
 
   factory Restaurant.fromFirestore(DocumentSnapshot doc) {
@@ -35,6 +39,8 @@ class Restaurant {
       hoursOfOperation: data['hoursOfOperation'] ?? '',
       isVerified: data['isVerified'] ?? false,
       ownerId: data['ownerId'] ?? '',
+      lastYearRevenue: (data['lastYearRevenue'] as num?)?.toDouble(),
+      projectedGrowth: (data['projectedGrowth'] as num?)?.toDouble(),
     );
   }
 
@@ -48,6 +54,8 @@ class Restaurant {
       'hoursOfOperation': hoursOfOperation,
       'isVerified': isVerified,
       'ownerId': ownerId,
+      'lastYearRevenue': lastYearRevenue,
+      'projectedGrowth': projectedGrowth,
     };
   }
 

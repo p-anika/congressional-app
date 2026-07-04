@@ -94,6 +94,8 @@ class AuthProvider extends ChangeNotifier {
     required String hours,
     required double lat,
     required double lng,
+    double lastYearRevenue = 0.0,
+    double projectedGrowth = 0.0,
   }) async {
     final cred = await FirebaseService.signUp(email, password);
     final uid = cred.user!.uid;
@@ -116,6 +118,8 @@ class AuthProvider extends ChangeNotifier {
       hoursOfOperation: hours,
       isVerified: false,
       ownerId: uid,
+      lastYearRevenue: lastYearRevenue,
+      projectedGrowth: projectedGrowth,
     ));
   }
 

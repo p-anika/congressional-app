@@ -25,6 +25,8 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
   final _address = TextEditingController();
   final _phone = TextEditingController();
   final _hours = TextEditingController();
+  final _lastYearRevenue = TextEditingController();
+  final _projectedGrowth = TextEditingController();
 
   late RestaurantProvider _restaurantProvider;
 
@@ -46,6 +48,8 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
     _address.dispose();
     _phone.dispose();
     _hours.dispose();
+    _lastYearRevenue.dispose();
+    _projectedGrowth.dispose();
     super.dispose();
   }
 
@@ -64,6 +68,8 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
     _phone.text = restaurant.contactInfo;
     print('phone after set: ${_phone.text}');
     _hours.text = restaurant.hoursOfOperation;
+    _lastYearRevenue.text = restaurant.lastYearRevenue?.toString() ?? '';
+    _projectedGrowth.text = restaurant.projectedGrowth?.toString() ?? '';
   }
 
   Future<void> _save() async {
@@ -86,6 +92,8 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
       'hoursOfOperation': _hours.text.trim(),
       'lat': coords['lat'],
       'lng': coords['lng'],
+      'lastYearRevenue': double.tryParse(_lastYearRevenue.text.trim()),
+      'projectedGrowth': double.tryParse(_projectedGrowth.text.trim()),
     });
     if (mounted) setState(() { _editing = false; _saving = false; });
   }
@@ -175,6 +183,16 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                     const SizedBox(height: 14),
                     _field('Hours of Operation', _hours,
                         Icons.schedule_outlined),
+                    const SizedBox(height: 14),
+                    _field("Last Year's Revenue (\$)", _lastYearRevenue,
+                        Icons.attach_money,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true)),
+                    const SizedBox(height: 14),
+                    _field('Projected Revenue Growth This Year (%)',
+                        _projectedGrowth, Icons.trending_up,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true)),
                     const SizedBox(height: 24),
                     if (_error != null) ...[
                       Text(_error!,
@@ -211,6 +229,14 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                         FirebaseAuth.instance.currentUser?.email ?? ''),
                     _infoRow(Icons.schedule_outlined, 'Hours',
                         restaurant.hoursOfOperation),
+                    _infoRow(Icons.attach_money, 'Last Year\'s Revenue',
+                        restaurant.lastYearRevenue != null
+                            ? '\$${restaurant.lastYearRevenue!.toStringAsFixed(2)}'
+                            : '—'),
+                    _infoRow(Icons.trending_up, 'Projected Growth',
+                        restaurant.projectedGrowth != null
+                            ? '${restaurant.projectedGrowth!.toStringAsFixed(1)}%'
+                            : '—'),
                     _infoRow(
                       restaurant.isVerified
                           ? Icons.verified_outlined
