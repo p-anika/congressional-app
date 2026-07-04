@@ -123,7 +123,8 @@ class AuthProvider extends ChangeNotifier {
     await FirebaseService.signIn(email, password);
   }
 
-  Future<void> signUpUser(String email, String password) async {
+  Future<void> signUpUser(String email, String password,
+      {String phone = ''}) async {
     final cred = await FirebaseService.signUp(email, password);
     final uid = cred.user!.uid;
     await FirebaseService.createUserDoc(AppUser(
@@ -131,7 +132,7 @@ class AuthProvider extends ChangeNotifier {
       email: email,
       role: 'user',
       allergies: [],
-      phone: '',
+      phone: phone,
     ));
   }
 

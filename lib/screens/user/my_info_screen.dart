@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../services/firebase_service.dart';
 import '../../theme.dart';
 import '../../widgets/allergen_chips.dart';
 import '../role_select_screen.dart';
@@ -15,11 +17,28 @@ class MyInfoScreen extends StatefulWidget {
 
 class _MyInfoScreenState extends State<MyInfoScreen> {
   bool _refreshingLocation = false;
+  bool _editing = false;
+  bool _saving = false;
+  final _phone = TextEditingController();
+
+  @override
+  void dispose() {
+    _phone.dispose();
+    super.dispose();
+  }
 
   Future<void> _refreshLocation() async {
-    setState(() => _refreshingLocation = true);
+    if (mounted) setState(() => _refreshingLocation = true);
     await context.read<UserProvider>().refreshLocation();
     if (mounted) setState(() => _refreshingLocation = false);
+  }
+
+  Future<void> _savePhone() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    if (mounted) setState(() => _saving = true);
+    await FirebaseService.updateUserDoc(uid, {'phone': _phone.text.trim()});
+    if (mounted) setState(() { _saving = false; _editing = false; });
   }
 
   @override
@@ -32,6 +51,14 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
       appBar: AppBar(
         title: const Text('My Info'),
         actions: [
+          if (!_editing)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () {
+                _phone.text = user?.phone ?? '';
+                if (mounted) setState(() => _editing = true);
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -59,16 +86,60 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                         fontSize: 16,
                         color: AppColors.textPrimary)),
                 const SizedBox(height: 12),
-                _InfoTile(
-                  icon: Icons.email_outlined,
-                  label: 'Email',
-                  value: user.email,
-                ),
-                _InfoTile(
-                  icon: Icons.phone_outlined,
-                  label: 'Phone',
-                  value: user.phone.isEmpty ? 'Not set' : user.phone,
-                ),
+                if (_editing) ...[
+                  TextField(
+                    readOnly: true,
+                    controller:
+                        TextEditingController(text: user.email),
+                    decoration: const InputDecoration(
+                      labelText: 'Email (cannot be changed)',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  _saving
+                      ? const Center(child: CircularProgressIndicator())
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  if (mounted) setState(() => _editing = false);
+                                },
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _savePhone,
+                                child: const Text('Save'),
+                              ),
+                            ),
+                          ],
+                        ),
+                ] else ...[
+                  _InfoTile(
+                    icon: Icons.email_outlined,
+                    label: 'Email',
+                    value: user.email,
+                  ),
+                  _InfoTile(
+                    icon: Icons.phone_outlined,
+                    label: 'Phone',
+                    value: user.phone.isEmpty ? 'Not set' : user.phone,
+                  ),
+                ],
                 const SizedBox(height: 24),
 
                 // ── Location ─────────────────────────────────────────────

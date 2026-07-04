@@ -21,6 +21,7 @@ class _UserAuthScreenState extends State<UserAuthScreen>
   final _loginPassword = TextEditingController();
   final _signupEmail = TextEditingController();
   final _signupPassword = TextEditingController();
+  final _signupPhone = TextEditingController();
 
   @override
   void initState() {
@@ -35,6 +36,7 @@ class _UserAuthScreenState extends State<UserAuthScreen>
     _loginPassword.dispose();
     _signupEmail.dispose();
     _signupPassword.dispose();
+    _signupPhone.dispose();
     super.dispose();
   }
 
@@ -68,7 +70,8 @@ class _UserAuthScreenState extends State<UserAuthScreen>
     try {
       await context
           .read<AuthProvider>()
-          .signUpUser(_signupEmail.text.trim(), _signupPassword.text);
+          .signUpUser(_signupEmail.text.trim(), _signupPassword.text,
+              phone: _signupPhone.text.trim());
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const UserHomeScreen()),
@@ -169,6 +172,14 @@ class _UserAuthScreenState extends State<UserAuthScreen>
             decoration: const InputDecoration(
                 labelText: 'Password', prefixIcon: Icon(Icons.lock_outlined)),
             obscureText: true,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _signupPhone,
+            decoration: const InputDecoration(
+                labelText: 'Phone Number (e.g. 123-456-7890)',
+                prefixIcon: Icon(Icons.phone_outlined)),
+            keyboardType: TextInputType.phone,
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
