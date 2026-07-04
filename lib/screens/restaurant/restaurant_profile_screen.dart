@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/restaurant.dart';
@@ -22,7 +23,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
 
   final _name = TextEditingController();
   final _address = TextEditingController();
-  final _contact = TextEditingController();
+  final _phone = TextEditingController();
   final _hours = TextEditingController();
 
   late RestaurantProvider _restaurantProvider;
@@ -33,6 +34,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
     _restaurantProvider = context.read<RestaurantProvider>();
     // Pre-fill if restaurant is already loaded (e.g. app restart with session)
     _syncControllers(_restaurantProvider.myRestaurant);
+    print('initState phone: ${_phone.text}');
     // Listen for the first load and any subsequent Firestore updates
     _restaurantProvider.addListener(_onRestaurantChanged);
   }
@@ -42,7 +44,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
     _restaurantProvider.removeListener(_onRestaurantChanged);
     _name.dispose();
     _address.dispose();
-    _contact.dispose();
+    _phone.dispose();
     _hours.dispose();
     super.dispose();
   }
@@ -55,9 +57,12 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
 
   void _syncControllers(Restaurant? restaurant) {
     if (restaurant == null) return;
+    if (!mounted) return;
+    print('_syncControllers called: contactInfo=${restaurant.contactInfo}');
     _name.text = restaurant.name;
     _address.text = restaurant.address;
-    _contact.text = restaurant.contactInfo;
+    _phone.text = restaurant.contactInfo;
+    print('phone after set: ${_phone.text}');
     _hours.text = restaurant.hoursOfOperation;
   }
 
@@ -77,7 +82,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
     await provider.updateMyRestaurant({
       'name': _name.text.trim(),
       'address': _address.text.trim(),
-      'contactInfo': _contact.text.trim(),
+      'contactInfo': _phone.text.trim(),
       'hoursOfOperation': _hours.text.trim(),
       'lat': coords['lat'],
       'lng': coords['lng'],
@@ -97,7 +102,11 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
           if (!_editing)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              onPressed: () => setState(() => _editing = true),
+              onPressed: () {
+                final r = _restaurantProvider.myRestaurant;
+                if (r != null) _syncControllers(r);
+                setState(() => _editing = true);
+              },
             ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -150,7 +159,19 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                     const SizedBox(height: 14),
                     _field('Address', _address, Icons.location_on_outlined),
                     const SizedBox(height: 14),
-                    _field('Contact Info', _contact, Icons.phone_outlined),
+                    TextField(
+                      readOnly: true,
+                      controller: TextEditingController(
+                          text: FirebaseAuth.instance.currentUser?.email ?? ''),
+                      decoration: const InputDecoration(
+                        labelText: 'Email (cannot be changed)',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 14),
+                    _field('Phone Number', _phone, Icons.phone_outlined,
+                        keyboardType: TextInputType.phone),
                     const SizedBox(height: 14),
                     _field('Hours of Operation', _hours,
                         Icons.schedule_outlined),
@@ -184,8 +205,10 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                     _infoRow(Icons.restaurant, 'Name', restaurant.name),
                     _infoRow(Icons.location_on_outlined, 'Address',
                         restaurant.address),
-                    _infoRow(Icons.phone_outlined, 'Contact',
+                    _infoRow(Icons.phone_outlined, 'Phone',
                         restaurant.contactInfo),
+                    _infoRow(Icons.email_outlined, 'Email',
+                        FirebaseAuth.instance.currentUser?.email ?? ''),
                     _infoRow(Icons.schedule_outlined, 'Hours',
                         restaurant.hoursOfOperation),
                     _infoRow(
@@ -207,9 +230,11 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
     );
   }
 
-  Widget _field(String label, TextEditingController ctrl, IconData icon) {
+  Widget _field(String label, TextEditingController ctrl, IconData icon,
+      {TextInputType? keyboardType}) {
     return TextField(
       controller: ctrl,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),

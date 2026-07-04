@@ -7,7 +7,6 @@ import '../../models/food_listing.dart';
 import '../../providers/food_listing_provider.dart';
 import '../../theme.dart';
 import '../../widgets/allergen_chips.dart';
-import '../../widgets/food_listing_card.dart';
 
 class RestaurantListingsScreen extends StatefulWidget {
   const RestaurantListingsScreen({super.key});
@@ -90,7 +89,7 @@ class _RestaurantListingsScreenState extends State<RestaurantListingsScreen> {
               itemCount: _listings.length,
               itemBuilder: (ctx, i) {
                 final l = _listings[i];
-                return FoodListingCard(
+                return _RestaurantListingCard(
                   listing: l,
                   onEdit: () => _showEditSheet(context, l),
                   onDelete: () => _confirmDelete(context, l.id),
@@ -161,6 +160,7 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
   final _item = TextEditingController();
   final _amount = TextEditingController();
   final _feedsPeople = TextEditingController();
+  final _cost = TextEditingController();
   final _containsCtrl = TextEditingController();
   List<String> _allergens = [];
   List<String> _contains = [];
@@ -174,6 +174,7 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
       _item.text = e.item;
       _amount.text = e.amount;
       _feedsPeople.text = e.feedsPeople.toString();
+      _cost.text = e.cost?.toString() ?? '';
       _allergens = List.from(e.allergens);
       _contains = List.from(e.contains);
     }
@@ -184,6 +185,7 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
     _item.dispose();
     _amount.dispose();
     _feedsPeople.dispose();
+    _cost.dispose();
     _containsCtrl.dispose();
     super.dispose();
   }
@@ -192,6 +194,7 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
     setState(() => _saving = true);
     final provider = context.read<FoodListingProvider>();
     try {
+      final costValue = double.tryParse(_cost.text.trim());
       if (widget.existing != null) {
         await provider.updateListing(widget.existing!.id, {
           'item': _item.text.trim(),
@@ -199,16 +202,21 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
           'feedsPeople': int.tryParse(_feedsPeople.text) ?? 0,
           'allergens': _allergens,
           'contains': _contains,
+          'cost': costValue,
         });
       } else {
-        await provider.addListing(
-          restaurantId: widget.restaurantId,
-          item: _item.text.trim(),
-          amount: _amount.text.trim(),
-          feedsPeople: int.tryParse(_feedsPeople.text) ?? 0,
-          allergens: _allergens,
-          contains: _contains,
-        );
+        await FirebaseFirestore.instance.collection('foodListings').add({
+          'restaurantId': widget.restaurantId,
+          'item': _item.text.trim(),
+          'amount': _amount.text.trim(),
+          'feedsPeople': int.tryParse(_feedsPeople.text) ?? 0,
+          'allergens': _allergens,
+          'contains': _contains,
+          'isAvailable': true,
+          'createdAt': Timestamp.now(),
+          'expiresAt': null,
+          'cost': costValue,
+        });
       }
       if (mounted) Navigator.pop(context);
     } finally {
@@ -252,13 +260,19 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
             TextField(
               controller: _amount,
               decoration:
-                  const InputDecoration(labelText: 'Amount (e.g. 20 portions)'),
+                  const InputDecoration(labelText: 'Amount of Portions'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _feedsPeople,
               decoration: const InputDecoration(labelText: 'Feeds how many people?'),
               keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _cost,
+              decoration: const InputDecoration(labelText: 'Cost per portion (\$)'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 16),
             const Text('Allergens',
@@ -310,6 +324,118 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
                     onPressed: _save,
                     child: Text(isEdit ? 'Save Changes' : 'Add Listing'),
                   ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RestaurantListingCard extends StatelessWidget {
+  final FoodListing listing;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  const _RestaurantListingCard({
+    required this.listing,
+    this.onEdit,
+    this.onDelete,
+  });
+
+  String _formatAmount(String amount) {
+    final trimmed = amount.trim();
+    return double.tryParse(trimmed) != null ? '$trimmed portions' : trimmed;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    listing.item,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                if (onEdit != null) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 18),
+                    onPressed: onEdit,
+                    visualDensity: VisualDensity.compact,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
+                if (onDelete != null)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    onPressed: onDelete,
+                    visualDensity: VisualDensity.compact,
+                    color: Colors.red.shade400,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.inventory_2_outlined,
+                    size: 14, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  _formatAmount(listing.amount),
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 13),
+                ),
+                const SizedBox(width: 12),
+                const Icon(Icons.people_outline,
+                    size: 14, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  'Feeds ${listing.feedsPeople}',
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 13),
+                ),
+                if (listing.cost != null) ...[
+                  const SizedBox(width: 12),
+                  const Icon(Icons.attach_money,
+                      size: 14, color: AppColors.textSecondary),
+                  Text(
+                    listing.cost!.toStringAsFixed(2),
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                ],
+              ],
+            ),
+            if (listing.allergens.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              AllergenChips(allergens: listing.allergens, small: true),
+            ],
+            if (listing.contains.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 4,
+                children: listing.contains
+                    .map((c) => Chip(
+                          label: Text(c,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary)),
+                          backgroundColor: AppColors.background,
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ))
+                    .toList(),
+              ),
+            ],
           ],
         ),
       ),

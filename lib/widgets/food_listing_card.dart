@@ -17,6 +17,9 @@ class FoodListingCard extends StatelessWidget {
     this.onDelete,
   });
 
+  String _displayAmount(String amount) =>
+      double.tryParse(amount) != null ? '$amount portions' : amount;
+
   @override
   Widget build(BuildContext context) {
     final hasConflict = listing.hasAllergenConflict(userAllergies);
@@ -73,7 +76,7 @@ class FoodListingCard extends StatelessWidget {
                     size: 14, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
                 Text(
-                  listing.amount,
+                  _displayAmount(listing.amount),
                   style: const TextStyle(
                       color: AppColors.textSecondary, fontSize: 13),
                 ),

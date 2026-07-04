@@ -205,7 +205,7 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
           TextField(
             controller: _contactInfo,
             decoration: const InputDecoration(
-                labelText: 'Contact Info (e.g. 123-456-7890)',
+                labelText: 'Phone Number (e.g. 123-456-7890)',
                 prefixIcon: Icon(Icons.phone_outlined)),
           ),
           const SizedBox(height: 16),

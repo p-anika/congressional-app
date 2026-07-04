@@ -11,6 +11,7 @@ class FoodListing {
   final bool isAvailable;
   final DateTime createdAt;
   final DateTime? expiresAt;
+  final double? cost;
 
   FoodListing({
     required this.id,
@@ -23,6 +24,7 @@ class FoodListing {
     required this.isAvailable,
     required this.createdAt,
     this.expiresAt,
+    this.cost,
   });
 
   factory FoodListing.fromFirestore(DocumentSnapshot doc) {
@@ -38,6 +40,7 @@ class FoodListing {
       isAvailable: data['isAvailable'] ?? true,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
+      cost: (data['cost'] as num?)?.toDouble(),
     );
   }
 
@@ -52,6 +55,7 @@ class FoodListing {
       'isAvailable': isAvailable,
       'createdAt': Timestamp.fromDate(createdAt),
       'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt!) : null,
+      'cost': cost,
     };
   }
 
