@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/food_listing_provider.dart';
 import '../../providers/restaurant_provider.dart';
 import '../../theme.dart';
+import 'impact_screen.dart';
 import 'restaurant_listings_screen.dart';
 import 'restaurant_profile_screen.dart';
 
@@ -22,6 +23,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
 
   final List<Widget> _screens = const [
     RestaurantListingsScreen(),
+    ImpactScreen(),
     RestaurantProfileScreen(),
   ];
 
@@ -83,13 +85,18 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
+            icon: Icon(Icons.list_outlined),
+            selectedIcon: Icon(Icons.list),
             label: 'My Listings',
           ),
           NavigationDestination(
-            icon: Icon(Icons.store_outlined),
-            selectedIcon: Icon(Icons.store),
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Impact',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
             label: 'My Info',
           ),
         ],

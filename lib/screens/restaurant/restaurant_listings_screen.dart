@@ -561,6 +561,14 @@ class _CompletedListingCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.textSecondary),
                   ),
+                  if (listing.cost != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Cost: \$${listing.cost!.toStringAsFixed(2)} per portion',
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  ],
                   if (listing.completedAt != null) ...[
                     const SizedBox(height: 2),
                     Text(
