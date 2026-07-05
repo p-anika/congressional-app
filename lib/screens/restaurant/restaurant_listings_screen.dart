@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/food_listing.dart';
 import '../../providers/food_listing_provider.dart';
+import '../../services/firebase_service.dart';
 import '../../theme.dart';
 import '../../widgets/allergen_chips.dart';
 
@@ -19,7 +20,9 @@ class RestaurantListingsScreen extends StatefulWidget {
 class _RestaurantListingsScreenState extends State<RestaurantListingsScreen> {
   String? _restaurantId;
   List<FoodListing> _listings = [];
+  List<FoodListing> _completedListings = [];
   StreamSubscription<QuerySnapshot>? _listingsSub;
+  StreamSubscription<List<FoodListing>>? _completedSub;
 
   @override
   void initState() {
@@ -55,11 +58,17 @@ class _RestaurantListingsScreenState extends State<RestaurantListingsScreen> {
                 snapshot.docs.map(FoodListing.fromFirestore).toList());
           }
         });
+
+    _completedSub = FirebaseService.completedListingsByRestaurant(restaurantId)
+        .listen((listings) {
+      if (mounted) setState(() => _completedListings = listings);
+    });
   }
 
   @override
   void dispose() {
     _listingsSub?.cancel();
+    _completedSub?.cancel();
     super.dispose();
   }
 
@@ -76,26 +85,54 @@ class _RestaurantListingsScreenState extends State<RestaurantListingsScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add Food'),
       ),
-      body: _listings.isEmpty
-          ? const Center(
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 100),
+        children: [
+          // ── Active listings ──────────────────────────────────────────────
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text('Active Listings',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: AppColors.textPrimary)),
+          ),
+          if (_listings.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Text(
                 'No active listings.\nTap + to add available food.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary),
               ),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 100),
-              itemCount: _listings.length,
-              itemBuilder: (ctx, i) {
-                final l = _listings[i];
-                return _RestaurantListingCard(
+          else
+            ..._listings.map((l) => _RestaurantListingCard(
                   listing: l,
                   onEdit: () => _showEditSheet(context, l),
                   onDelete: () => _confirmDelete(context, l.id),
-                );
-              },
-            ),
+                  onComplete: () => _confirmComplete(context, l.id),
+                )),
+
+          // ── Completed orders ─────────────────────────────────────────────
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 24, 16, 4),
+            child: Text('Completed Orders',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: AppColors.textPrimary)),
+          ),
+          if (_completedListings.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text('No completed orders yet.',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            )
+          else
+            ..._completedListings.map((l) => _CompletedListingCard(listing: l)),
+        ],
+      ),
     );
   }
 
@@ -117,6 +154,33 @@ class _RestaurantListingsScreenState extends State<RestaurantListingsScreen> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _AddFoodListingSheet(
           restaurantId: listing.restaurantId, existing: listing),
+    );
+  }
+
+  void _confirmComplete(BuildContext context, String id) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mark as completed?'),
+        content: const Text('Mark this listing as completed/eaten? It will be removed from the active listings.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              FirebaseFirestore.instance.collection('foodListings').doc(id).update({
+                'isCompleted': true,
+                'completedAt': Timestamp.now(),
+                'isAvailable': false,
+              });
+              Navigator.pop(ctx);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.green),
+            child: const Text('Mark Completed'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -335,11 +399,13 @@ class _RestaurantListingCard extends StatelessWidget {
   final FoodListing listing;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final VoidCallback? onComplete;
 
   const _RestaurantListingCard({
     required this.listing,
     this.onEdit,
     this.onDelete,
+    this.onComplete,
   });
 
   String _formatAmount(String amount) {
@@ -365,6 +431,14 @@ class _RestaurantListingCard extends StatelessWidget {
                         fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                 ),
+                if (onComplete != null)
+                  IconButton(
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    onPressed: onComplete,
+                    visualDensity: VisualDensity.compact,
+                    color: Colors.green,
+                    tooltip: 'Mark as completed',
+                  ),
                 if (onEdit != null) ...[
                   const SizedBox(width: 4),
                   IconButton(
@@ -436,6 +510,68 @@ class _RestaurantListingCard extends StatelessWidget {
                     .toList(),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompletedListingCard extends StatelessWidget {
+  final FoodListing listing;
+
+  const _CompletedListingCard({required this.listing});
+
+  String _formatAmount(String amount) {
+    final trimmed = amount.trim();
+    return double.tryParse(trimmed) != null ? '$trimmed portions' : trimmed;
+  }
+
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return '';
+    return '${dt.month}/${dt.day}/${dt.year} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      color: AppColors.background,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    listing.item,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${_formatAmount(listing.amount)} · Feeds ${listing.feedsPeople}',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  if (listing.completedAt != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Completed ${_formatDate(listing.completedAt)}',
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),

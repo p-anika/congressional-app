@@ -126,4 +126,20 @@ class FirebaseService {
         .snapshots()
         .map((snap) => snap.docs.map(FoodListing.fromFirestore).toList());
   }
+
+  static Stream<List<FoodListing>> completedListingsByRestaurant(
+      String restaurantId) {
+    return _db
+        .collection('foodListings')
+        .where('restaurantId', isEqualTo: restaurantId)
+        .where('isCompleted', isEqualTo: true)
+        .snapshots()
+        .map((snap) {
+      final listings =
+          snap.docs.map(FoodListing.fromFirestore).toList();
+      listings.sort((a, b) =>
+          (b.completedAt ?? DateTime(0)).compareTo(a.completedAt ?? DateTime(0)));
+      return listings;
+    });
+  }
 }

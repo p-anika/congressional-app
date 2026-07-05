@@ -12,6 +12,8 @@ class FoodListing {
   final DateTime createdAt;
   final DateTime? expiresAt;
   final double? cost;
+  final bool isCompleted;
+  final DateTime? completedAt;
 
   FoodListing({
     required this.id,
@@ -25,6 +27,8 @@ class FoodListing {
     required this.createdAt,
     this.expiresAt,
     this.cost,
+    this.isCompleted = false,
+    this.completedAt,
   });
 
   factory FoodListing.fromFirestore(DocumentSnapshot doc) {
@@ -41,6 +45,8 @@ class FoodListing {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
       cost: (data['cost'] as num?)?.toDouble(),
+      isCompleted: data['isCompleted'] ?? false,
+      completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -56,6 +62,8 @@ class FoodListing {
       'createdAt': Timestamp.fromDate(createdAt),
       'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt!) : null,
       'cost': cost,
+      'isCompleted': isCompleted,
+      'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
     };
   }
 
