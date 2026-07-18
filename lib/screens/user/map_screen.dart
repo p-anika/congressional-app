@@ -282,6 +282,16 @@ class _RestaurantSheetState extends State<_RestaurantSheet> {
             },
             child: const Text('View Full Details'),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                const SnackBar(content: Text('Showing directions to restaurant')),
+              );
+            },
+            child: const Text('Show Directions'),
+          ),
         ],
       ),
     );
