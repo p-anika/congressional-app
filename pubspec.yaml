@@ -21,6 +21,7 @@ dependencies:
   latlong2: ^0.9.1
   geolocator: ^13.0.2
   http: ^1.2.2
+  url_launcher: ^6.3.1
 
   # State Management
   provider: ^6.1.2

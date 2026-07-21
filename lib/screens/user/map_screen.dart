@@ -284,11 +284,24 @@ class _RestaurantSheetState extends State<_RestaurantSheet> {
           ),
           const SizedBox(height: 8),
           OutlinedButton(
-            onPressed: () {
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                const SnackBar(content: Text('Showing directions to restaurant')),
+              final launched = await LocationService.launchGoogleMapsDirections(
+                originLat: widget.userLat,
+                originLng: widget.userLng,
+                destinationLat: restaurant.lat,
+                destinationLng: restaurant.lng,
               );
+
+              if (!mounted) return;
+              if (!launched) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Could not open Google Maps for directions.'),
+                  ),
+                );
+              }
             },
             child: const Text('Show Directions'),
           ),

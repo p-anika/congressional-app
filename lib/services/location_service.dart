@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 class LocationService {
   static Future<Position?> getCurrentPosition() async {
@@ -38,8 +39,49 @@ class LocationService {
     if (data['status'] == 'OK') {
       final location =
           data['results'][0]['geometry']['location'] as Map<String, dynamic>;
-      return {'lat': (location['lat'] as num).toDouble(), 'lng': (location['lng'] as num).toDouble()};
+      return {
+        'lat': (location['lat'] as num).toDouble(),
+        'lng': (location['lng'] as num).toDouble(),
+      };
     }
     return null;
+  }
+
+  static Uri buildGoogleMapsDirectionsUrl({
+    double? originLat,
+    double? originLng,
+    required double destinationLat,
+    required double destinationLng,
+    String travelMode = 'driving',
+  }) {
+    final queryParameters = <String, String>{
+      'api': '1',
+      'destination': '$destinationLat,$destinationLng',
+      'travelmode': travelMode,
+    };
+
+    if (originLat != null && originLng != null) {
+      queryParameters['origin'] = '$originLat,$originLng';
+    }
+
+    return Uri.https('www.google.com', '/maps/dir/', queryParameters);
+  }
+
+  static Future<bool> launchGoogleMapsDirections({
+    double? originLat,
+    double? originLng,
+    required double destinationLat,
+    required double destinationLng,
+    String travelMode = 'driving',
+  }) async {
+    final uri = buildGoogleMapsDirectionsUrl(
+      originLat: originLat,
+      originLng: originLng,
+      destinationLat: destinationLat,
+      destinationLng: destinationLng,
+      travelMode: travelMode,
+    );
+
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
