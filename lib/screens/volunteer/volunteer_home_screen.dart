@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/volunteer_provider.dart';
 import '../../theme.dart';
-import '../role_select_screen.dart';
-import '../volunteer/volunteer_buy_meals_screen.dart';
+import 'volunteer_buy_meals_screen.dart';
+import 'volunteer_impact_screen.dart';
+import 'volunteer_info_screen.dart';
 
 class VolunteerHomeScreen extends StatefulWidget {
   const VolunteerHomeScreen({super.key});
@@ -14,6 +15,14 @@ class VolunteerHomeScreen extends StatefulWidget {
 }
 
 class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
+  int _currentIndex = 0;
+
+  final List<Widget> _screens = const [
+    VolunteerBuyMealsScreen(),
+    VolunteerImpactScreen(),
+    VolunteerInfoScreen(),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -27,34 +36,17 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final volunteer = context.watch<VolunteerProvider>().myVolunteer;
-    final auth = context.watch<AuthProvider>();
 
     return Theme(
       data: buildVolunteerTheme(),
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Volunteer'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () async {
-                await auth.signOut();
-                if (context.mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const RoleSelectScreen()),
-                    (_) => false,
-                  );
-                }
-              },
-            ),
-          ],
-        ),
         body: Column(
           children: [
             if (volunteer != null && !volunteer.isApproved)
               MaterialBanner(
                 backgroundColor: AppColors.warning.withValues(alpha: 0.15),
-                leading: const Icon(Icons.pending_outlined, color: AppColors.warning),
+                leading:
+                    const Icon(Icons.pending_outlined, color: AppColors.warning),
                 content: const Text(
                   'Your volunteer account is pending review. '
                   'Some features may be limited until approved.',
@@ -62,17 +54,27 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
                 ),
                 actions: const [SizedBox.shrink()],
               ),
-            Expanded( // const Expanded () ??
-              child: Center(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.restaurant_menu),
-                  label: const Text('Buy a Meal to Donate'),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const VolunteerBuyMealsScreen()),
-                  ),
-                ),
-              ),
+            Expanded(child: _screens[_currentIndex]),
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (i) => setState(() => _currentIndex = i),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.restaurant_menu_outlined),
+              selectedIcon: Icon(Icons.restaurant_menu),
+              label: 'Buy Meals',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bar_chart_outlined),
+              selectedIcon: Icon(Icons.bar_chart),
+              label: 'Impact',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'My Info',
             ),
           ],
         ),
