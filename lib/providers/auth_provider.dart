@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_user.dart';
 import '../models/restaurant.dart';
+import '../models/volunteer.dart';
 import '../services/firebase_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -137,6 +138,38 @@ class AuthProvider extends ChangeNotifier {
       role: 'user',
       allergies: [],
       phone: phone,
+    ));
+  }
+
+  Future<void> signInVolunteer(String email, String password) async {
+    await FirebaseService.signIn(email, password);
+  }
+
+  Future<void> signUpVolunteer({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    String organization = '',
+  }) async {
+    final cred = await FirebaseService.signUp(email, password);
+    final uid = cred.user!.uid;
+
+    await FirebaseService.createUserDoc(AppUser(
+      id: uid,
+      email: email,
+      role: 'volunteer',
+      allergies: [],
+      phone: phone,
+    ));
+
+    await FirebaseService.createVolunteerDoc(Volunteer(
+      id: uid,
+      name: name,
+      email: email,
+      phone: phone,
+      organization: organization,
+      isApproved: false, // reviewed by you later, like restaurant isVerified
     ));
   }
 

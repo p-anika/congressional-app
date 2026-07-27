@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'restaurant/restaurant_auth_screen.dart';
 import 'user/user_auth_screen.dart';
+import 'volunteer/volunteer_auth_screen.dart';
 
 class RoleSelectScreen extends StatelessWidget {
   const RoleSelectScreen({super.key});
@@ -65,6 +66,18 @@ class RoleSelectScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const UserAuthScreen()),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _RoleCard(
+                icon: Icons.volunteer_activism_outlined,
+                title: 'Volunteer',
+                subtitle: 'Help deliver food and give back',
+                color: AppColors.volunteerPrimary,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const VolunteerAuthScreen()),
                 ),
               ),
               const Spacer(),

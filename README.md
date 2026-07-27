@@ -51,6 +51,12 @@ service cloud.firestore {
       allow write: if request.auth != null &&
         (resource == null || resource.data.ownerId == request.auth.uid);
     }
+    // NEW: ADD THIS VOLUNTEERS BLOCK TO Firebase Console → Firestore → Rules tab
+    match /volunteers/{uid} {
+      allow read: if request.auth.uid == uid;
+      allow write: if request.auth.uid == uid;
+    }
+    //
     match /foodListings/{id} {
       allow read: if request.auth != null;
       allow write: if request.auth != null;

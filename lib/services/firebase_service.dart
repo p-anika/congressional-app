@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/restaurant.dart';
 import '../models/food_listing.dart';
 import '../models/app_user.dart';
+import '../models/volunteer.dart';
 
 class FirebaseService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -84,6 +85,29 @@ class FirebaseService {
         .doc(id)
         .snapshots()
         .map((snap) => snap.exists ? Restaurant.fromFirestore(snap) : null);
+  }
+
+  // ── Volunteers ────────────────────────────────────────────────────────────
+
+  static Future<void> createVolunteerDoc(Volunteer v) {
+    return _db.collection('volunteers').doc(v.id).set(v.toMap());
+  }
+
+  static Future<Volunteer?> getVolunteerDocOnce(String uid) async {
+    final snap = await _db.collection('volunteers').doc(uid).get();
+    return snap.exists ? Volunteer.fromFirestore(snap) : null;
+  }
+
+  static Stream<Volunteer?> volunteerStream(String uid) {
+    return _db
+        .collection('volunteers')
+        .doc(uid)
+        .snapshots()
+        .map((snap) => snap.exists ? Volunteer.fromFirestore(snap) : null);
+  }
+
+  static Future<void> updateVolunteerDoc(String uid, Map<String, dynamic> data) {
+    return _db.collection('volunteers').doc(uid).update(data);
   }
 
   // ── Food Listings ─────────────────────────────────────────────────────────

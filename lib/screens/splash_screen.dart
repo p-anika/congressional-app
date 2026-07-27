@@ -5,6 +5,7 @@ import '../theme.dart';
 import 'role_select_screen.dart';
 import 'restaurant/restaurant_home_screen.dart';
 import 'user/user_home_screen.dart';
+import 'volunteer/volunteer_home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -57,6 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
             final role = roleSnap.data;
             if (role == 'restaurant') return const RestaurantHomeScreen();
             if (role == 'user') return const UserHomeScreen();
+            if (role == 'volunteer') return const VolunteerHomeScreen();
             return const RoleSelectScreen();
           },
         );
