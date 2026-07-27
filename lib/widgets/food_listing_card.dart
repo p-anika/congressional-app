@@ -69,6 +69,43 @@ class FoodListingCard extends StatelessWidget {
                   ),
               ],
             ),
+            // ── NEW: price / sponsorship badge for purchasable listings ──
+            if (listing.isPurchasable) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (listing.isSponsored ? Colors.green : AppColors.allergenChip)
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      listing.isSponsored
+                          ? Icons.volunteer_activism
+                          : Icons.attach_money,
+                      size: 14,
+                      color: listing.isSponsored ? Colors.green : AppColors.allergenChip,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      listing.isSponsored
+                          ? 'Free — sponsored by a volunteer'
+                          : 'Buy for \$${listing.price!.toStringAsFixed(2)}/portion',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: listing.isSponsored
+                            ? Colors.green.shade800
+                            : AppColors.allergenChip,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 4),
             Row(
               children: [

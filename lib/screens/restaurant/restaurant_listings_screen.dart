@@ -88,31 +88,60 @@ class _RestaurantListingsScreenState extends State<RestaurantListingsScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 100),
         children: [
-          // ── Active listings ──────────────────────────────────────────────
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Text('Active Listings',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: AppColors.textPrimary)),
-          ),
-          if (_listings.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Text(
-                'No active listings.\nTap + to add available food.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-            )
-          else
-            ..._listings.map((l) => _RestaurantListingCard(
-                  listing: l,
-                  onEdit: () => _showEditSheet(context, l),
-                  onDelete: () => _confirmDelete(context, l.id),
-                  onComplete: () => _confirmComplete(context, l.id),
-                )),
+          // ── Active listings, split by type ──────────────────────────────
+          Builder(builder: (_) {
+            final freeListings = _listings.where((l) => !l.isPurchasable).toList();
+            final purchaseListings = _listings.where((l) => l.isPurchasable).toList();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                  child: Text('Free Listings',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppColors.textPrimary)),
+                ),
+                if (freeListings.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text('No free listings.',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  )
+                else
+                  ...freeListings.map((l) => _RestaurantListingCard(
+                        listing: l,
+                        onEdit: () => _showEditSheet(context, l),
+                        onDelete: () => _confirmDelete(context, l.id),
+                        onComplete: () => _confirmComplete(context, l.id),
+                      )),
+
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 20, 16, 4),
+                  child: Text('For Purchase',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppColors.textPrimary)),
+                ),
+                if (purchaseListings.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text('No listings for purchase.',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  )
+                else
+                  ...purchaseListings.map((l) => _RestaurantListingCard(
+                        listing: l,
+                        onEdit: () => _showEditSheet(context, l),
+                        onDelete: () => _confirmDelete(context, l.id),
+                        onComplete: () => _confirmComplete(context, l.id),
+                      )),
+              ],
+            );
+          }),
 
           // ── Completed orders ─────────────────────────────────────────────
           const Padding(
@@ -225,10 +254,12 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
   final _amount = TextEditingController();
   final _feedsPeople = TextEditingController();
   final _cost = TextEditingController();
+  final _price = TextEditingController();
   final _containsCtrl = TextEditingController();
   List<String> _allergens = [];
   List<String> _contains = [];
   bool _saving = false;
+  bool _isPurchasable = false; // false = free listing
 
   @override
   void initState() {
@@ -239,6 +270,8 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
       _amount.text = e.amount;
       _feedsPeople.text = e.feedsPeople.toString();
       _cost.text = e.cost?.toString() ?? '';
+      _price.text = e.price?.toString() ?? '';
+      _isPurchasable = e.isPurchasable;
       _allergens = List.from(e.allergens);
       _contains = List.from(e.contains);
     }
@@ -250,15 +283,29 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
     _amount.dispose();
     _feedsPeople.dispose();
     _cost.dispose();
+    _price.dispose();
     _containsCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
+    // Validate price doesn't exceed market cost when purchasable
+    final costValue = double.tryParse(_cost.text.trim());
+    final priceValue = _isPurchasable ? double.tryParse(_price.text.trim()) : null;
+    if (_isPurchasable) {
+      if (priceValue == null) {
+        _showError('Enter a valid price for this meal.');
+        return;
+      }
+      if (costValue != null && priceValue > costValue) {
+        _showError('Price cannot exceed the market cost per portion.');
+        return;
+      }
+    }
+    
     setState(() => _saving = true);
     final provider = context.read<FoodListingProvider>();
     try {
-      final costValue = double.tryParse(_cost.text.trim());
       if (widget.existing != null) {
         await provider.updateListing(widget.existing!.id, {
           'item': _item.text.trim(),
@@ -267,6 +314,7 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
           'allergens': _allergens,
           'contains': _contains,
           'cost': costValue,
+          'price': priceValue,
         });
       } else {
         await FirebaseFirestore.instance.collection('foodListings').add({
@@ -280,12 +328,20 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
           'createdAt': Timestamp.now(),
           'expiresAt': null,
           'cost': costValue,
+          'price': priceValue,
+          'sponsoredByVolunteerId': null,
+          'sponsoredAt': null,
         });
       }
       if (mounted) Navigator.pop(context);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 
   void _addContainsTag() {
@@ -335,9 +391,35 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _cost,
-              decoration: const InputDecoration(labelText: 'Cost per portion (\$)'),
+              decoration: const InputDecoration(
+                  labelText: 'Market cost per portion (\$)'),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
+            const SizedBox(height: 16),
+
+            // ── NEW: Free / For Purchase toggle ──────────────────────────
+            const Text('Listing Type', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text('Free')),
+                ButtonSegment(value: true, label: Text('For Purchase')),
+              ],
+              selected: {_isPurchasable},
+              onSelectionChanged: (v) => setState(() => _isPurchasable = v.first),
+            ),
+            if (_isPurchasable) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _price,
+                decoration: const InputDecoration(
+                  labelText: 'Price per portion (\$)',
+                  helperText: 'A volunteer pays this amount to sponsor the meal.',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ),
+            ],
+
             const SizedBox(height: 16),
             const Text('Allergens',
                 style: TextStyle(fontWeight: FontWeight.w600)),
@@ -458,6 +540,27 @@ class _RestaurantListingCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
+            if (listing.isPurchasable) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.sell_outlined,
+                      size: 14,
+                      color: listing.isSponsored ? Colors.green : AppColors.warning),
+                  const SizedBox(width: 4),
+                  Text(
+                    listing.isSponsored
+                        ? 'Sponsored by a volunteer'
+                        : '\$${listing.price!.toStringAsFixed(2)}/portion — awaiting a volunteer',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: listing.isSponsored ? Colors.green : AppColors.warning,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             Row(
               children: [
                 const Icon(Icons.inventory_2_outlined,

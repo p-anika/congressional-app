@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/food_listing.dart';
+import '../../models/meal_purchase.dart';
 import '../../providers/restaurant_provider.dart';
 import '../../services/firebase_service.dart';
 import '../../theme.dart';
@@ -17,6 +18,8 @@ class ImpactScreen extends StatefulWidget {
 class _ImpactScreenState extends State<ImpactScreen> {
   List<FoodListing> _completed = [];
   StreamSubscription<List<FoodListing>>? _sub;
+  List<MealPurchase> _purchases = [];
+  StreamSubscription<List<MealPurchase>>? _purchaseSub;
   final _currency = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
 
   @override
@@ -29,12 +32,17 @@ class _ImpactScreenState extends State<ImpactScreen> {
           .listen((list) {
         if (mounted) setState(() => _completed = list);
       });
+      _purchaseSub = FirebaseService.purchasesByRestaurant(restaurantId)
+          .listen((list) {
+        if (mounted) setState(() => _purchases = list);
+      });
     }
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _purchaseSub?.cancel();
     super.dispose();
   }
 
@@ -54,6 +62,11 @@ class _ImpactScreenState extends State<ImpactScreen> {
     for (final l in _completed) {
       totalDonationValue += (l.cost ?? 0) * l.feedsPeople;
       totalPeopleFed += l.feedsPeople;
+    }
+    for (final p in _purchases) {
+      totalDonationValue += p.restaurantDonationAmount;
+      // Note: people fed from purchases already counted once the corresponding listing is marked completed above, 
+      // so we don't double-count feedsPeople here. Only the $ discount is added.
     }
 
     final donationPct =

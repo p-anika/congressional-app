@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/volunteer_provider.dart';
 import '../../theme.dart';
 import '../role_select_screen.dart';
+import '../volunteer/volunteer_buy_meals_screen.dart';
 
 class VolunteerHomeScreen extends StatefulWidget {
   const VolunteerHomeScreen({super.key});
@@ -19,6 +20,7 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
     final uid = context.read<AuthProvider>().firebaseUser?.uid;
     if (uid != null) {
       context.read<VolunteerProvider>().listenToMyVolunteer(uid);
+      context.read<VolunteerProvider>().listenToMyPurchases(uid);
     }
   }
 
@@ -60,8 +62,17 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
                 ),
                 actions: const [SizedBox.shrink()],
               ),
-            const Expanded(
-              child: Center(child: Text('More coming soon!')),
+            Expanded( // const Expanded () ??
+              child: Center(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.restaurant_menu),
+                  label: const Text('Buy a Meal to Donate'),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const VolunteerBuyMealsScreen()),
+                  ),
+                ),
+              ),
             ),
           ],
         ),

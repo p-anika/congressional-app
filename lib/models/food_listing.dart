@@ -11,9 +11,12 @@ class FoodListing {
   final bool isAvailable;
   final DateTime createdAt;
   final DateTime? expiresAt;
-  final double? cost;
+  final double? cost; // market value per portion
   final bool isCompleted;
   final DateTime? completedAt;
+  final double? price; // modified price for homeless person. value of null or 0 means free listing; value greater than 0 = purchasable by voluteer
+  final String? sponsoredByVolunteerId; // set once a volunteer buys it
+  final DateTime? sponsoredAt;
 
   FoodListing({
     required this.id,
@@ -29,7 +32,14 @@ class FoodListing {
     this.cost,
     this.isCompleted = false,
     this.completedAt,
+    this.price,
+    this.sponsoredByVolunteerId,
+    this.sponsoredAt,
   });
+
+  bool get isPurchasable => (price ?? 0) > 0; // True if the restaurant listed this to be bought rather than given free.
+  bool get isSponsored => sponsoredByVolunteerId != null; // True once a volunteer has bought/sponsored it for a homeless person.
+  bool get isAvailableForPurchase => isAvailable && isPurchasable && !isSponsored; // True if still purchasable and nobody has bought it yet.
 
   factory FoodListing.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -47,6 +57,9 @@ class FoodListing {
       cost: (data['cost'] as num?)?.toDouble(),
       isCompleted: data['isCompleted'] ?? false,
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
+      price: (data['price'] as num?)?.toDouble(),
+      sponsoredByVolunteerId: data['sponsoredByVolunteerId'],
+      sponsoredAt: (data['sponsoredAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -64,6 +77,9 @@ class FoodListing {
       'cost': cost,
       'isCompleted': isCompleted,
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
+      'price': price,
+      'sponsoredByVolunteerId': sponsoredByVolunteerId,
+      'sponsoredAt': sponsoredAt != null ? Timestamp.fromDate(sponsoredAt!) : null,
     };
   }
 

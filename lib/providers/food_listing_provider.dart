@@ -43,6 +43,8 @@ class FoodListingProvider extends ChangeNotifier {
     required List<String> allergens,
     required List<String> contains,
     DateTime? expiresAt,
+    double? cost,
+    double? price,
   }) async {
     final listing = FoodListing(
       id: '',
@@ -55,6 +57,8 @@ class FoodListingProvider extends ChangeNotifier {
       isAvailable: true,
       createdAt: DateTime.now(),
       expiresAt: expiresAt,
+      cost: cost,
+      price: price,
     );
     await FirebaseService.addFoodListing(listing);
   }
@@ -64,6 +68,10 @@ class FoodListingProvider extends ChangeNotifier {
       listing.id,
       {'isAvailable': !listing.isAvailable},
     );
+  }
+
+  Future<void> buyListing(FoodListing listing, String volunteerId) async {
+    await FirebaseService.buyListing(listing: listing, volunteerId: volunteerId);
   }
 
   Future<void> deleteListing(String id) async {

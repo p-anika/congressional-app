@@ -4,6 +4,7 @@ import '../models/restaurant.dart';
 import '../models/food_listing.dart';
 import '../models/app_user.dart';
 import '../models/volunteer.dart';
+import '../models/meal_purchase.dart';
 
 class FirebaseService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -165,5 +166,77 @@ class FirebaseService {
           (b.completedAt ?? DateTime(0)).compareTo(a.completedAt ?? DateTime(0)));
       return listings;
     });
+  }
+
+  // ── Meal Purchases ───────────────────────────────────────────────────────
+
+  // Listings any volunteer can currently buy: purchasable, active, unclaimed.
+  // Requires a composite index (Firestore console will prompt you the first
+  // time this runs — click the link it gives you to auto-create it).
+  static Stream<List<FoodListing>> purchasableListingsStream() {
+    return _db
+        .collection('foodListings')
+        .where('isAvailable', isEqualTo: true)
+        .where('price', isGreaterThan: 0)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map(FoodListing.fromFirestore)
+            .where((l) => !l.isSponsored)
+            .toList());
+  }
+
+  // Atomically: mark the listing sponsored + write the purchase record.
+  // Transaction prevents two volunteers buying the same listing at once.
+  static Future<void> buyListing({
+    required FoodListing listing,
+    required String volunteerId,
+  }) {
+    final listingRef = _db.collection('foodListings').doc(listing.id);
+    final purchaseRef = _db.collection('mealPurchases').doc();
+
+    final marketValue = (listing.cost ?? listing.price ?? 0) * listing.feedsPeople;
+    final pricePaid = (listing.price ?? 0) * listing.feedsPeople;
+    final donation = (marketValue - pricePaid).clamp(0, double.infinity);
+
+    return _db.runTransaction((tx) async {
+      final fresh = await tx.get(listingRef);
+      final freshListing = FoodListing.fromFirestore(fresh);
+      if (freshListing.isSponsored || !freshListing.isAvailable) {
+        throw Exception('This meal was already claimed by another volunteer.');
+      }
+
+      tx.update(listingRef, {
+        'sponsoredByVolunteerId': volunteerId,
+        'sponsoredAt': Timestamp.now(),
+      });
+
+      tx.set(purchaseRef, MealPurchase(
+        id: purchaseRef.id,
+        listingId: listing.id,
+        restaurantId: listing.restaurantId,
+        volunteerId: volunteerId,
+        item: listing.item,
+        pricePaid: pricePaid,
+        marketValue: marketValue,
+        restaurantDonationAmount: donation.toDouble(),
+        purchasedAt: DateTime.now(),
+      ).toMap());
+    });
+  }
+
+  static Stream<List<MealPurchase>> purchasesByVolunteer(String volunteerId) {
+    return _db
+        .collection('mealPurchases')
+        .where('volunteerId', isEqualTo: volunteerId)
+        .snapshots()
+        .map((snap) => snap.docs.map(MealPurchase.fromFirestore).toList());
+  }
+
+  static Stream<List<MealPurchase>> purchasesByRestaurant(String restaurantId) {
+    return _db
+        .collection('mealPurchases')
+        .where('restaurantId', isEqualTo: restaurantId)
+        .snapshots()
+        .map((snap) => snap.docs.map(MealPurchase.fromFirestore).toList());
   }
 }
