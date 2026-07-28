@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../models/food_listing.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/volunteer_provider.dart';
+import '../../providers/food_listing_provider.dart';
 import '../../services/firebase_service.dart';
 import '../../theme.dart';
+import '../../widgets/quantity_dialog.dart';
 
 class VolunteerBuyMealsScreen extends StatefulWidget {
   const VolunteerBuyMealsScreen({super.key});
@@ -48,23 +50,25 @@ class _VolunteerBuyMealsScreenState extends State<VolunteerBuyMealsScreen> {
       return;
     }
 
-    final total = (listing.price ?? 0) * listing.feedsPeople;
+    final qty = await showQuantityDialog(context,
+        title: 'How many portions to sponsor?',
+        max: listing.purchasablePortionsRemaining);
+    if (qty == null) return;
+
+    final total = (listing.price ?? 0) * qty;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirm Purchase'),
         content: Text(
-          'Buy "${listing.item}" for \$${total.toStringAsFixed(2)} '
-          'and donate it to someone in need?',
+          'Sponsor $qty portion${qty == 1 ? '' : 's'} of "${listing.item}" for '
+          '\$${total.toStringAsFixed(2)} and donate it to someone in need?',
         ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Confirm & Donate')),
+              onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm & Donate')),
         ],
       ),
     );
@@ -74,10 +78,12 @@ class _VolunteerBuyMealsScreenState extends State<VolunteerBuyMealsScreen> {
     if (uid == null) return;
 
     try {
-      await FirebaseService.buyListing(listing: listing, volunteerId: uid);
+      await context
+          .read<FoodListingProvider>()
+          .purchasePortions(listing, uid, qty, isSelfPurchase: false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('You sponsored "${listing.item}" for someone in need. Thank you!'),
+          content: Text('You sponsored $qty portion${qty == 1 ? '' : 's'} of "${listing.item}". Thank you!'),
         ));
       }
     } catch (e) {
@@ -144,9 +150,9 @@ class _VolunteerBuyMealsScreenState extends State<VolunteerBuyMealsScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    '\$${total.toStringAsFixed(2)} total',
+                                    '\$${l.price!.toStringAsFixed(2)}/portion · ${l.purchasablePortionsRemaining} left to buy',
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.bold, fontSize: 15),
+                                        fontWeight: FontWeight.bold, fontSize: 14),
                                   ),
                                   ElevatedButton(
                                     onPressed: () => _confirmBuy(l),

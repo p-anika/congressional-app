@@ -5,6 +5,7 @@ import '../models/food_listing.dart';
 import '../models/app_user.dart';
 import '../models/volunteer.dart';
 import '../models/meal_purchase.dart';
+import '../models/portion_claim.dart';
 
 class FirebaseService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -168,56 +169,179 @@ class FirebaseService {
     });
   }
 
-  // ── Meal Purchases ───────────────────────────────────────────────────────
+  // ── Portion Claims (free, or already-sponsored, portions) ───────────────
 
-  // Listings any volunteer can currently buy: purchasable, active, unclaimed.
-  // isAvailable/isSponsored are filtered client-side
+  static Future<void> claimPortions({
+    required FoodListing listing,
+    required String userId,
+    required int quantity,
+  }) {
+    final listingRef = _db.collection('foodListings').doc(listing.id);
+    final claimRef = _db.collection('portionClaims').doc();
+
+    return _db.runTransaction((tx) async {
+      final fresh = await tx.get(listingRef);
+      final freshListing = FoodListing.fromFirestore(fresh);
+      if (!freshListing.isAvailable || freshListing.availablePortions < quantity) {
+        throw Exception(
+            'Not enough portions left — someone else may have just claimed one.');
+      }
+
+      tx.update(listingRef, {
+        'claimedCount': freshListing.claimedCount + quantity,
+      });
+
+      tx.set(claimRef, PortionClaim(
+        id: claimRef.id,
+        listingId: listing.id,
+        restaurantId: listing.restaurantId,
+        userId: userId,
+        quantity: quantity,
+        status: 'claimed',
+        claimedAt: DateTime.now(),
+      ).toMap());
+    });
+  }
+
+  static Stream<List<PortionClaim>> claimsByListing(String listingId) {
+    return _db
+        .collection('portionClaims')
+        .where('listingId', isEqualTo: listingId)
+        .where('status', isEqualTo: 'claimed')
+        .snapshots()
+        .map((snap) {
+      final claims = snap.docs.map(PortionClaim.fromFirestore).toList();
+      claims.sort((a, b) => a.claimedAt.compareTo(b.claimedAt));
+      return claims;
+    });
+  }
+
+  static Stream<List<PortionClaim>> claimsByUser(String userId) {
+    return _db
+        .collection('portionClaims')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snap) => snap.docs.map(PortionClaim.fromFirestore).toList());
+  }
+
+  // Restaurant marks the oldest outstanding claim on a listing as picked up.
+  // No server-side orderBy here on purpose (see the composite-index lesson
+  // from purchasableListingsStream earlier) — sort client-side instead.
+  static Future<void> completeOldestClaim(String listingId) {
+    final listingRef = _db.collection('foodListings').doc(listingId);
+
+    return _db.runTransaction((tx) async {
+      final claimsSnap = await _db
+          .collection('portionClaims')
+          .where('listingId', isEqualTo: listingId)
+          .where('status', isEqualTo: 'claimed')
+          .get();
+
+      if (claimsSnap.docs.isEmpty) {
+        throw Exception('No pending claims to complete for this listing.');
+      }
+
+      final sortedDocs = claimsSnap.docs.toList()
+        ..sort((a, b) => (a.data()['claimedAt'] as Timestamp)
+            .compareTo(b.data()['claimedAt'] as Timestamp));
+      final claimDoc = sortedDocs.first;
+      final claim = PortionClaim.fromFirestore(claimDoc);
+
+      final fresh = await tx.get(listingRef);
+      final freshListing = FoodListing.fromFirestore(fresh);
+
+      final newCompleted = freshListing.completedCount + claim.quantity;
+      final newClaimed = freshListing.claimedCount - claim.quantity;
+
+      tx.update(listingRef, {
+        'completedCount': newCompleted,
+        'claimedCount': newClaimed < 0 ? 0 : newClaimed,
+        if (newCompleted >= freshListing.totalPortions) ...{
+          'isCompleted': true,
+          'completedAt': Timestamp.now(),
+          'isAvailable': false,
+        },
+      });
+
+      tx.update(claimDoc.reference, {
+        'status': 'completed',
+        'completedAt': Timestamp.now(),
+      });
+    });
+  }
+
+  // ── Portion Purchases (volunteer sponsoring for someone else, OR a
+  //    homeless person buying a discounted portion for themself) ──────────
+
   static Stream<List<FoodListing>> purchasableListingsStream() {
     return _db
         .collection('foodListings')
         .snapshots()
         .map((snap) => snap.docs
             .map(FoodListing.fromFirestore)
-            .where((l) => l.isPurchasable && l.isAvailable && !l.isSponsored)
+            .where((l) => l.isAvailable && l.purchasablePortionsRemaining > 0)
             .toList());
   }
 
-  // Atomically: mark the listing sponsored + write the purchase record.
-  // Transaction prevents two volunteers buying the same listing at once.
-  static Future<void> buyListing({
+  static Future<void> purchasePortions({
     required FoodListing listing,
-    required String volunteerId,
+    required String buyerId,
+    required int quantity,
+    required bool isSelfPurchase,
   }) {
     final listingRef = _db.collection('foodListings').doc(listing.id);
     final purchaseRef = _db.collection('mealPurchases').doc();
+    final claimRef = _db.collection('portionClaims').doc();
 
-    final marketValue = (listing.cost ?? listing.price ?? 0) * listing.feedsPeople;
-    final pricePaid = (listing.price ?? 0) * listing.feedsPeople;
+    final perPortionCost = listing.cost ?? listing.price ?? 0;
+    final marketValue = perPortionCost * quantity;
+    final pricePaid = (listing.price ?? 0) * quantity;
     final donation = (marketValue - pricePaid).clamp(0, double.infinity);
 
     return _db.runTransaction((tx) async {
       final fresh = await tx.get(listingRef);
       final freshListing = FoodListing.fromFirestore(fresh);
-      if (freshListing.isSponsored || !freshListing.isAvailable) {
-        throw Exception('This meal was already claimed by another volunteer.');
+      if (!freshListing.isAvailable ||
+          freshListing.purchasablePortionsRemaining < quantity) {
+        throw Exception('Not enough portions left to buy — try a smaller amount.');
       }
 
-      tx.update(listingRef, {
-        'sponsoredByVolunteerId': volunteerId,
-        'sponsoredAt': Timestamp.now(),
-      });
+      final updates = <String, dynamic>{
+        'sponsoredCount': freshListing.sponsoredCount + quantity,
+      };
+      if (isSelfPurchase) {
+        updates['claimedCount'] = freshListing.claimedCount + quantity;
+      }
+      tx.update(listingRef, updates);
 
       tx.set(purchaseRef, MealPurchase(
         id: purchaseRef.id,
         listingId: listing.id,
         restaurantId: listing.restaurantId,
-        volunteerId: volunteerId,
+        volunteerId: buyerId,
+        isSelfPurchase: isSelfPurchase,
         item: listing.item,
+        portions: quantity,
         pricePaid: pricePaid,
         marketValue: marketValue,
         restaurantDonationAmount: donation.toDouble(),
         purchasedAt: DateTime.now(),
       ).toMap());
+
+      // Only self-buyers are immediately "claimed" — a volunteer sponsoring
+      // for someone else leaves the portion open for a homeless person to
+      // claim for free via claimPortions().
+      if (isSelfPurchase) {
+        tx.set(claimRef, PortionClaim(
+          id: claimRef.id,
+          listingId: listing.id,
+          restaurantId: listing.restaurantId,
+          userId: buyerId,
+          quantity: quantity,
+          status: 'claimed',
+          claimedAt: DateTime.now(),
+        ).toMap());
+      }
     });
   }
 

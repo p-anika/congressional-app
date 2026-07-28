@@ -61,11 +61,18 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if request.auth != null;
     }
-    // NEW: ADD THIS VOLUNTEERS BLOCK TO Firebase Console → Firestore → Rules tab
+    // NEW: ADD THIS MEAL PURCHASES BLOCK TO Firebase Console → Firestore → Rules tab
       match /mealPurchases/{id} {
         allow read: if request.auth != null;
         allow create: if request.auth != null;
         allow update, delete: if false; // append-only ledger
+      }
+    //
+    // NEW: ADD THIS PORTION CLAIMS BLOCK TO Firebase Console → Firestore → Rules tab
+      match /portionClaims/{id} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        allow update: if request.auth != null; // restaurant marks completed
       }
     //
   }

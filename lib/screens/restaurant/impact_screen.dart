@@ -16,7 +16,7 @@ class ImpactScreen extends StatefulWidget {
 }
 
 class _ImpactScreenState extends State<ImpactScreen> {
-  List<FoodListing> _completed = [];
+  List<FoodListing> _allListings = [];
   StreamSubscription<List<FoodListing>>? _sub;
   List<MealPurchase> _purchases = [];
   StreamSubscription<List<MealPurchase>>? _purchaseSub;
@@ -28,9 +28,8 @@ class _ImpactScreenState extends State<ImpactScreen> {
     final restaurantId =
         context.read<RestaurantProvider>().myRestaurant?.id;
     if (restaurantId != null && restaurantId.isNotEmpty) {
-      _sub = FirebaseService.completedListingsByRestaurant(restaurantId)
-          .listen((list) {
-        if (mounted) setState(() => _completed = list);
+      _sub = FirebaseService.allListingsByRestaurant(restaurantId).listen((list) {
+        if (mounted) setState(() => _allListings = list);
       });
       _purchaseSub = FirebaseService.purchasesByRestaurant(restaurantId)
           .listen((list) {
@@ -59,9 +58,9 @@ class _ImpactScreenState extends State<ImpactScreen> {
 
     double totalDonationValue = 0;
     int totalPeopleFed = 0;
-    for (final l in _completed) {
-      totalDonationValue += (l.cost ?? 0) * l.feedsPeople;
-      totalPeopleFed += l.feedsPeople;
+    for (final l in _allListings) {
+      totalDonationValue += (l.cost ?? 0) * l.completedCount;
+      totalPeopleFed += l.completedCount;
     }
     for (final p in _purchases) {
       totalDonationValue += p.restaurantDonationAmount;
@@ -257,7 +256,7 @@ class _ImpactScreenState extends State<ImpactScreen> {
                                     color: AppColors.textSecondary)),
                           ]),
                           Text(
-                            _completed.length.toString(),
+                            totalPeopleFed.toString(),
                             style: const TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,

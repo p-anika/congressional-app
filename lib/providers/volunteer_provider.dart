@@ -13,7 +13,7 @@ class VolunteerProvider extends ChangeNotifier {
   Volunteer? get myVolunteer => _myVolunteer;
   List<MealPurchase> get myPurchases => _myPurchases;
   double get totalMoneyDonated => _myPurchases.fold(0.0, (sum, p) => sum + p.pricePaid);
-  int get totalMealsBought => _myPurchases.length;
+  int get totalMealsBought => _myPurchases.fold(0, (sum, p) => sum + p.portions);
 
   void listenToMyVolunteer(String uid) {
     _volunteerSub?.cancel();

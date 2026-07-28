@@ -5,18 +5,20 @@ class FoodListing {
   final String restaurantId;
   final String item;
   final String amount;
-  final int feedsPeople;
+  final int feedsPeople; // total portions in this listing
   final List<String> allergens;
   final List<String> contains;
   final bool isAvailable;
   final DateTime createdAt;
   final DateTime? expiresAt;
   final double? cost; // market value per portion
-  final bool isCompleted;
+  final bool isCompleted; // true once every portion has been picked up
   final DateTime? completedAt;
-  final double? price; // modified price for homeless person. value of null or 0 means free listing; value greater than 0 = purchasable by voluteer
-  final String? sponsoredByVolunteerId; // set once a volunteer buys it
-  final DateTime? sponsoredAt;
+
+  final double? price; // null/0 = free; >0 = purchasable per portion
+  final int claimedCount;   // portions claimed (free or sponsored), awaiting pickup
+  final int completedCount; // portions actually picked up
+  final int sponsoredCount; // portions paid for (volunteer or self-buyer)
 
   FoodListing({
     required this.id,
@@ -33,13 +35,27 @@ class FoodListing {
     this.isCompleted = false,
     this.completedAt,
     this.price,
-    this.sponsoredByVolunteerId,
-    this.sponsoredAt,
+    this.claimedCount = 0,
+    this.completedCount = 0,
+    this.sponsoredCount = 0,
   });
 
-  bool get isPurchasable => (price ?? 0) > 0; // True if the restaurant listed this to be bought rather than given free.
-  bool get isSponsored => sponsoredByVolunteerId != null; // True once a volunteer has bought/sponsored it for a homeless person.
-  bool get isAvailableForPurchase => isAvailable && isPurchasable && !isSponsored; // True if still purchasable and nobody has bought it yet.
+  bool get isPurchasable => (price ?? 0) > 0;
+
+  int get totalPortions => feedsPeople;
+
+  /// Portions a homeless person can claim right now for free — either
+  /// originally free, or already paid for by a volunteer/self-buyer.
+  int get availablePortions => isPurchasable
+      ? (sponsoredCount - claimedCount - completedCount)
+      : (totalPortions - claimedCount - completedCount);
+
+  /// Portions still open for a volunteer (or the homeless person themself) to buy.
+  int get purchasablePortionsRemaining =>
+      isPurchasable ? (totalPortions - sponsoredCount) : 0;
+
+  bool get isLastPortion => availablePortions == 1;
+  bool get isFullyClaimed => completedCount >= totalPortions;
 
   factory FoodListing.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -58,8 +74,9 @@ class FoodListing {
       isCompleted: data['isCompleted'] ?? false,
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
       price: (data['price'] as num?)?.toDouble(),
-      sponsoredByVolunteerId: data['sponsoredByVolunteerId'],
-      sponsoredAt: (data['sponsoredAt'] as Timestamp?)?.toDate(),
+      claimedCount: (data['claimedCount'] ?? 0).toInt(),
+      completedCount: (data['completedCount'] ?? 0).toInt(),
+      sponsoredCount: (data['sponsoredCount'] ?? 0).toInt(),
     );
   }
 
@@ -78,8 +95,9 @@ class FoodListing {
       'isCompleted': isCompleted,
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
       'price': price,
-      'sponsoredByVolunteerId': sponsoredByVolunteerId,
-      'sponsoredAt': sponsoredAt != null ? Timestamp.fromDate(sponsoredAt!) : null,
+      'claimedCount': claimedCount,
+      'completedCount': completedCount,
+      'sponsoredCount': sponsoredCount,
     };
   }
 

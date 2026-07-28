@@ -70,8 +70,23 @@ class FoodListingProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> buyListing(FoodListing listing, String volunteerId) async {
-    await FirebaseService.buyListing(listing: listing, volunteerId: volunteerId);
+  Future<void> claimPortions(FoodListing listing, String userId, int quantity) async {
+    await FirebaseService.claimPortions(
+        listing: listing, userId: userId, quantity: quantity);
+  }
+
+  Future<void> purchasePortions(
+    FoodListing listing,
+    String buyerId,
+    int quantity, {
+    bool isSelfPurchase = false,
+  }) async {
+    await FirebaseService.purchasePortions(
+      listing: listing,
+      buyerId: buyerId,
+      quantity: quantity,
+      isSelfPurchase: isSelfPurchase,
+    );
   }
 
   Future<void> deleteListing(String id) async {

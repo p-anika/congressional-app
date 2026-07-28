@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/food_listing.dart';
+import '../../models/portion_claim.dart';
 import '../../providers/food_listing_provider.dart';
 import '../../services/firebase_service.dart';
 import '../../theme.dart';
@@ -495,6 +496,21 @@ class _RestaurantListingCard extends StatelessWidget {
     return double.tryParse(trimmed) != null ? '$trimmed portions' : trimmed;
   }
 
+  Future<void> _markPortionPickedUp(BuildContext context) async {
+    try {
+      await FirebaseService.completeOldestClaim(listing.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Marked one portion as picked up.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -507,22 +523,10 @@ class _RestaurantListingCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    listing.item,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
+                  child: Text(listing.item,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
-                if (onComplete != null)
-                  IconButton(
-                    icon: const Icon(Icons.check_circle_outline, size: 18),
-                    onPressed: onComplete,
-                    visualDensity: VisualDensity.compact,
-                    color: Colors.green,
-                    tooltip: 'Mark as completed',
-                  ),
                 if (onEdit != null) ...[
-                  const SizedBox(width: 4),
                   IconButton(
                     icon: const Icon(Icons.edit, size: 18),
                     onPressed: onEdit,
@@ -541,56 +545,59 @@ class _RestaurantListingCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             if (listing.isPurchasable) ...[
-              const SizedBox(height: 6),
               Row(
                 children: [
-                  Icon(Icons.sell_outlined,
-                      size: 14,
-                      color: listing.isSponsored ? Colors.green : AppColors.warning),
+                  Icon(Icons.sell_outlined, size: 14, color: AppColors.warning),
                   const SizedBox(width: 4),
                   Text(
-                    listing.isSponsored
-                        ? 'Sponsored by a volunteer'
-                        : '\$${listing.price!.toStringAsFixed(2)}/portion — awaiting a volunteer',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: listing.isSponsored ? Colors.green : AppColors.warning,
-                    ),
+                    '\$${listing.price!.toStringAsFixed(2)}/portion · ${listing.sponsoredCount} of ${listing.totalPortions} sponsored',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.warning),
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
             ],
             Row(
               children: [
-                const Icon(Icons.inventory_2_outlined,
-                    size: 14, color: AppColors.textSecondary),
+                const Icon(Icons.inventory_2_outlined, size: 14, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
-                Text(
-                  _formatAmount(listing.amount),
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13),
-                ),
+                Text(_formatAmount(listing.amount),
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                 const SizedBox(width: 12),
-                const Icon(Icons.people_outline,
-                    size: 14, color: AppColors.textSecondary),
+                const Icon(Icons.check_circle_outline, size: 14, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
-                Text(
-                  'Feeds ${listing.feedsPeople}',
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13),
-                ),
-                if (listing.cost != null) ...[
-                  const SizedBox(width: 12),
-                  const Icon(Icons.attach_money,
-                      size: 14, color: AppColors.textSecondary),
-                  Text(
-                    listing.cost!.toStringAsFixed(2),
-                    style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 13),
-                  ),
-                ],
+                Text('${listing.completedCount} of ${listing.totalPortions} portions picked up',
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
               ],
+            ),
+            const SizedBox(height: 8),
+            StreamBuilder<List<PortionClaim>>(
+              stream: FirebaseService.claimsByListing(listing.id),
+              builder: (context, snap) {
+                final pending = snap.data ?? [];
+                final pendingCount = pending.fold<int>(0, (sum, c) => sum + c.quantity);
+                if (pendingCount == 0) {
+                  return const Text('No portions currently claimed.',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12));
+                }
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Text('$pendingCount portion${pendingCount == 1 ? '' : 's'} awaiting pickup',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textPrimary)),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _markPortionPickedUp(context),
+                      icon: const Icon(Icons.check, size: 16),
+                      label: const Text('Mark Picked Up'),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             if (listing.allergens.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -602,15 +609,22 @@ class _RestaurantListingCard extends StatelessWidget {
                 spacing: 4,
                 children: listing.contains
                     .map((c) => Chip(
-                          label: Text(c,
-                              style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary)),
+                          label: Text(c, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                           backgroundColor: AppColors.background,
                           padding: EdgeInsets.zero,
                           visualDensity: VisualDensity.compact,
                         ))
                     .toList(),
+              ),
+            ],
+            if (onComplete != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: onComplete,
+                  child: const Text('End Listing Early', style: TextStyle(fontSize: 12)),
+                ),
               ),
             ],
           ],
@@ -619,6 +633,7 @@ class _RestaurantListingCard extends StatelessWidget {
     );
   }
 }
+
 
 class _CompletedListingCard extends StatelessWidget {
   final FoodListing listing;
