@@ -175,11 +175,10 @@ class FirebaseService {
   static Stream<List<FoodListing>> purchasableListingsStream() {
     return _db
         .collection('foodListings')
-        .where('price', isGreaterThan: 0)
         .snapshots()
         .map((snap) => snap.docs
             .map(FoodListing.fromFirestore)
-            .where((l) => l.isAvailable && !l.isSponsored)
+            .where((l) => l.isPurchasable && l.isAvailable && !l.isSponsored)
             .toList());
   }
 

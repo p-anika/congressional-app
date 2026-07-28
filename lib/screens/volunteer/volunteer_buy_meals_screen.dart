@@ -150,6 +150,10 @@ class _VolunteerBuyMealsScreenState extends State<VolunteerBuyMealsScreen> {
                                   ),
                                   ElevatedButton(
                                     onPressed: () => _confirmBuy(l),
+                                    style: ElevatedButton.styleFrom(
+                                      minimumSize: Size.zero,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    ),
                                     child: const Text('Buy & Donate'),
                                   ),
                                 ],
