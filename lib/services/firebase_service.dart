@@ -171,17 +171,15 @@ class FirebaseService {
   // ── Meal Purchases ───────────────────────────────────────────────────────
 
   // Listings any volunteer can currently buy: purchasable, active, unclaimed.
-  // Requires a composite index (Firestore console will prompt you the first
-  // time this runs — click the link it gives you to auto-create it).
+  // isAvailable/isSponsored are filtered client-side
   static Stream<List<FoodListing>> purchasableListingsStream() {
     return _db
         .collection('foodListings')
-        .where('isAvailable', isEqualTo: true)
         .where('price', isGreaterThan: 0)
         .snapshots()
         .map((snap) => snap.docs
             .map(FoodListing.fromFirestore)
-            .where((l) => !l.isSponsored)
+            .where((l) => l.isAvailable && !l.isSponsored)
             .toList());
   }
 

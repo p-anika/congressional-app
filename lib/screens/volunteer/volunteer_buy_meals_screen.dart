@@ -18,13 +18,19 @@ class VolunteerBuyMealsScreen extends StatefulWidget {
 class _VolunteerBuyMealsScreenState extends State<VolunteerBuyMealsScreen> {
   List<FoodListing> _listings = [];
   StreamSubscription<List<FoodListing>>? _sub;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _sub = FirebaseService.purchasableListingsStream().listen((list) {
-      if (mounted) setState(() => _listings = list);
-    });
+    _sub = FirebaseService.purchasableListingsStream().listen(
+      (list) {
+        if (mounted) setState(() { _listings = list; _error = null; });
+      },
+      onError: (e) {
+        if (mounted) setState(() => _error = e.toString());
+      },
+    );
   }
 
   @override
@@ -85,64 +91,78 @@ class _VolunteerBuyMealsScreenState extends State<VolunteerBuyMealsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Buy a Meal to Donate')),
-      body: _listings.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'No meals available for purchase right now.',
-                  style: TextStyle(color: AppColors.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: _listings.length,
-              itemBuilder: (ctx, i) {
-                final l = _listings[i];
-                final total = (l.price ?? 0) * l.feedsPeople;
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(l.item,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
-                        const SizedBox(height: 4),
-                        Text('Feeds ${l.feedsPeople} · ${l.amount}',
-                            style: const TextStyle(
-                                color: AppColors.textSecondary, fontSize: 13)),
-                        if (l.allergens.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text('Contains: ${l.allergens.join(', ')}',
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary, fontSize: 12)),
-                        ],
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '\$${total.toStringAsFixed(2)} total',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 15),
-                            ),
-                            ElevatedButton(
-                              onPressed: () => _confirmBuy(l),
-                              child: const Text('Buy & Donate'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+      body: Column(
+        children: [
+          if (_error != null)
+            Container(
+              width: double.infinity,
+              color: Colors.red.shade50,
+              padding: const EdgeInsets.all(12),
+              child: Text('Error loading meals: $_error',
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
             ),
+          Expanded(
+            child: _listings.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'No meals available for purchase right now.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: _listings.length,
+                    itemBuilder: (ctx, i) {
+                      final l = _listings[i];
+                      final total = (l.price ?? 0) * l.feedsPeople;
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(l.item,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16)),
+                              const SizedBox(height: 4),
+                              Text('Feeds ${l.feedsPeople} · ${l.amount}',
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary, fontSize: 13)),
+                              if (l.allergens.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text('Contains: ${l.allergens.join(', ')}',
+                                    style: const TextStyle(
+                                        color: AppColors.textSecondary, fontSize: 12)),
+                              ],
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '\$${total.toStringAsFixed(2)} total',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold, fontSize: 15),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () => _confirmBuy(l),
+                                    child: const Text('Buy & Donate'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
