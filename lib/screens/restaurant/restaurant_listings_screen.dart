@@ -663,10 +663,7 @@ class _CompletedListingCard extends StatelessWidget {
 
   const _CompletedListingCard({required this.listing});
 
-  String _formatAmount(String amount) {
-    final trimmed = amount.trim();
-    return double.tryParse(trimmed) != null ? '$trimmed portions' : trimmed;
-  }
+  String _formatAmount(String amount) => amount.trim();
 
   String _formatDate(DateTime? dt) {
     if (dt == null) return '';
@@ -698,7 +695,7 @@ class _CompletedListingCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${_formatAmount(listing.amount)} · Feeds ${listing.feedsPeople}',
+                    '${_formatAmount(listing.amount)} · ${listing.feedsPeople} portions total',
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.textSecondary),
                   ),

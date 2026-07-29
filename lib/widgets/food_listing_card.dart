@@ -21,8 +21,7 @@ class FoodListingCard extends StatelessWidget {
     this.onDelete,
   });
 
-  String _displayAmount(String amount) =>
-      double.tryParse(amount) != null ? '$amount portions' : amount;
+  String _displayAmount(String amount) => amount.trim();
 
   Future<void> _claim(BuildContext context, int max) async {
     final qty = await showQuantityDialog(context,
@@ -157,8 +156,12 @@ class FoodListingCard extends StatelessWidget {
               children: [
                 const Icon(Icons.inventory_2_outlined, size: 14, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
-                Text(_displayAmount(listing.amount),
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                Text(
+                  _displayAmount(listing.amount).isEmpty
+                      ? '—'
+                      : _displayAmount(listing.amount),
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                ),
                 const SizedBox(width: 12),
                 const Icon(Icons.people_outline, size: 14, color: AppColors.textSecondary),
                 const SizedBox(width: 4),

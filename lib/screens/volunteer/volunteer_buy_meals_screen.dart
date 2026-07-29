@@ -135,10 +135,16 @@ class _VolunteerBuyMealsScreenState extends State<VolunteerBuyMealsScreen> {
                               Text(l.item,
                                   style: const TextStyle(
                                       fontWeight: FontWeight.bold, fontSize: 16)),
+                              if (l.amount.trim().isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(l.amount.trim(),
+                                    style: const TextStyle(
+                                        color: AppColors.textSecondary, fontSize: 13)),
+                              ],
                               const SizedBox(height: 4),
-                              Text('Feeds ${l.feedsPeople} · ${l.amount}',
+                              Text('${l.feedsPeople} portions total',
                                   style: const TextStyle(
-                                      color: AppColors.textSecondary, fontSize: 13)),
+                                      color: AppColors.textSecondary, fontSize: 12)),
                               if (l.allergens.isNotEmpty) ...[
                                 const SizedBox(height: 4),
                                 Text('Contains: ${l.allergens.join(', ')}',
