@@ -7,6 +7,7 @@ class PortionClaim {
   final String userId;
   final int quantity;
   final String status; // 'claimed' | 'completed'
+  final bool paidBySelf; // true if this user bought it themselves (not free/sponsored)
   final DateTime claimedAt;
   final DateTime? completedAt;
 
@@ -17,6 +18,7 @@ class PortionClaim {
     required this.userId,
     required this.quantity,
     required this.status,
+    this.paidBySelf = false,
     required this.claimedAt,
     this.completedAt,
   });
@@ -30,6 +32,7 @@ class PortionClaim {
       userId: data['userId'] ?? '',
       quantity: (data['quantity'] ?? 1).toInt(),
       status: data['status'] ?? 'claimed',
+      paidBySelf: data['paidBySelf'] ?? false,
       claimedAt: (data['claimedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
     );
@@ -42,6 +45,7 @@ class PortionClaim {
       'userId': userId,
       'quantity': quantity,
       'status': status,
+      'paidBySelf': paidBySelf,
       'claimedAt': Timestamp.fromDate(claimedAt),
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
     };

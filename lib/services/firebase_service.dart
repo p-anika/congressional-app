@@ -169,6 +169,66 @@ class FirebaseService {
     });
   }
 
+  // One-time fetch, used for building history views (My Claims) where the
+  // listing may no longer be in the live "active listings" stream.
+  static Future<FoodListing?> getListingOnce(String id) async {
+    final snap = await _db.collection('foodListings').doc(id).get();
+    return snap.exists ? FoodListing.fromFirestore(snap) : null;
+  }
+
+  static Future<Restaurant?> getRestaurantOnce(String id) async {
+    final snap = await _db.collection('restaurants').doc(id).get();
+    return snap.exists ? Restaurant.fromFirestore(snap) : null;
+  }
+
+  // Restaurant records that a walk-in (non-app) customer took a portion for
+  // free, in real time — keeps in-app counts honest as pickups happen,
+  // rather than only reconciling at listing end.
+  static Future<void> recordWalkInPickup(String listingId) {
+    final listingRef = _db.collection('foodListings').doc(listingId);
+    return _db.runTransaction((tx) async {
+      final fresh = await tx.get(listingRef);
+      final listing = FoodListing.fromFirestore(fresh);
+      if (listing.availablePortions <= 0) {
+        throw Exception('No available portions left to record.');
+      }
+      final newCompleted = listing.completedCount + 1;
+      tx.update(listingRef, {
+        'completedCount': newCompleted,
+        if (newCompleted >= listing.totalPortions) ...{
+          'isCompleted': true,
+          'completedAt': Timestamp.now(),
+          'isAvailable': false,
+        },
+      });
+    });
+  }
+
+  // Ends a listing early, with an explicit reason that determines whether
+  // remaining unclaimed portions count toward the donation total:
+  //  - 'donatedInPerson': off-app pickup, credited as a donation
+  //  - 'spoiled': discarded, no credit
+  //  - 'soldElsewhere': sold to a paying walk-in, not charity, no credit
+  static Future<void> endListing(String listingId, String reason) {
+    final listingRef = _db.collection('foodListings').doc(listingId);
+    return _db.runTransaction((tx) async {
+      final fresh = await tx.get(listingRef);
+      final listing = FoodListing.fromFirestore(fresh);
+      final remaining =
+          listing.totalPortions - listing.claimedCount - listing.completedCount;
+
+      final updates = <String, dynamic>{
+        'isAvailable': false,
+        'isCompleted': true,
+        'completedAt': Timestamp.now(),
+      };
+      if (reason == 'donatedInPerson' && remaining > 0) {
+        updates['completedCount'] = listing.completedCount + remaining;
+      }
+      tx.update(listingRef, updates);
+    });
+  }
+
   // ── Portion Claims (free, or already-sponsored, portions) ───────────────
 
   static Future<void> claimPortions({
@@ -198,6 +258,7 @@ class FirebaseService {
         userId: userId,
         quantity: quantity,
         status: 'claimed',
+        paidBySelf: false,
         claimedAt: DateTime.now(),
       ).toMap());
     });
@@ -339,6 +400,7 @@ class FirebaseService {
           userId: buyerId,
           quantity: quantity,
           status: 'claimed',
+          paidBySelf: true,
           claimedAt: DateTime.now(),
         ).toMap());
       }

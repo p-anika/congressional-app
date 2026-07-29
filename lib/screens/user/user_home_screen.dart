@@ -7,6 +7,7 @@ import '../../providers/restaurant_provider.dart';
 import '../../providers/user_provider.dart';
 import 'map_screen.dart';
 import 'list_screen.dart';
+import 'my_claims_screen.dart';
 import 'my_info_screen.dart';
 
 class UserHomeScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   final List<Widget> _screens = [
     const MapScreen(),
     const ListScreen(),
+    const MyClaimsScreen(),
     const MyInfoScreen(),
   ];
 
@@ -55,6 +57,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
               icon: Icon(Icons.list_outlined),
               selectedIcon: Icon(Icons.list),
               label: 'List',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.receipt_long_outlined),
+              selectedIcon: Icon(Icons.receipt_long),
+              label: 'My Claims',
             ),
             NavigationDestination(
               icon: Icon(Icons.person_outline),

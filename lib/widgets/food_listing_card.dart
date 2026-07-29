@@ -206,6 +206,24 @@ class FoodListingCard extends StatelessWidget {
             ],
             if (isHomelessView && listing.isAvailable) ...[
               const SizedBox(height: 10),
+              if (available > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '$available free portion${available == 1 ? '' : 's'} available right now',
+                    style: const TextStyle(
+                        fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              if (buyable > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '$buyable more available to buy at \$${listing.price?.toStringAsFixed(2) ?? '0.00'} each',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.allergenChip, fontWeight: FontWeight.w600),
+                  ),
+                ),
               Row(
                 children: [
                   if (available > 0)
