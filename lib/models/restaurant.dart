@@ -12,6 +12,7 @@ class Restaurant {
   final String ownerId;
   final double? lastYearRevenue;
   final double? projectedGrowth;
+  final bool calculateTaxDeduction;
 
   Restaurant({
     required this.id,
@@ -25,6 +26,7 @@ class Restaurant {
     required this.ownerId,
     this.lastYearRevenue,
     this.projectedGrowth,
+    this.calculateTaxDeduction = true,
   });
 
   factory Restaurant.fromFirestore(DocumentSnapshot doc) {
@@ -41,6 +43,7 @@ class Restaurant {
       ownerId: data['ownerId'] ?? '',
       lastYearRevenue: (data['lastYearRevenue'] as num?)?.toDouble(),
       projectedGrowth: (data['projectedGrowth'] as num?)?.toDouble(),
+      calculateTaxDeduction: data['calculateTaxDeduction'] ?? true,
     );
   }
 
@@ -56,6 +59,7 @@ class Restaurant {
       'ownerId': ownerId,
       'lastYearRevenue': lastYearRevenue,
       'projectedGrowth': projectedGrowth,
+      'calculateTaxDeduction': calculateTaxDeduction,
     };
   }
 
@@ -69,6 +73,9 @@ class Restaurant {
     String? hoursOfOperation,
     bool? isVerified,
     String? ownerId,
+    double? lastYearRevenue,
+    double? projectedGrowth,
+    bool? calculateTaxDeduction,
   }) {
     return Restaurant(
       id: id ?? this.id,
@@ -80,6 +87,9 @@ class Restaurant {
       hoursOfOperation: hoursOfOperation ?? this.hoursOfOperation,
       isVerified: isVerified ?? this.isVerified,
       ownerId: ownerId ?? this.ownerId,
+      lastYearRevenue: lastYearRevenue ?? this.lastYearRevenue,
+      projectedGrowth: projectedGrowth ?? this.projectedGrowth,
+      calculateTaxDeduction: calculateTaxDeduction ?? this.calculateTaxDeduction,
     );
   }
 }

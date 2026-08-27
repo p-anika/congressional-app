@@ -80,12 +80,20 @@ class FoodListingProvider extends ChangeNotifier {
     String buyerId,
     int quantity, {
     bool isSelfPurchase = false,
+    bool requestDelivery = false,
+    double? dropoffLat,
+    double? dropoffLng,
+    String? buyerPhone,
   }) async {
     await FirebaseService.purchasePortions(
       listing: listing,
       buyerId: buyerId,
       quantity: quantity,
       isSelfPurchase: isSelfPurchase,
+      requestDelivery: requestDelivery,
+      dropoffLat: dropoffLat,
+      dropoffLng: dropoffLng,
+      buyerPhone: buyerPhone,
     );
   }
 

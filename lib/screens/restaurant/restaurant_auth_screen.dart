@@ -16,6 +16,7 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabs;
   bool _loading = false;
+  bool _calculateTaxDeduction = true;
   String? _error;
 
   // Login fields
@@ -104,6 +105,7 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
             double.tryParse(_lastYearRevenue.text.trim()) ?? 0.0,
         projectedGrowth:
             double.tryParse(_projectedGrowth.text.trim()) ?? 0.0,
+        calculateTaxDeduction: _calculateTaxDeduction, // NEW
       );
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -232,7 +234,7 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
           ),
-          const SizedBox(height: 16),
+                    const SizedBox(height: 16),
           TextField(
             controller: _projectedGrowth,
             decoration: const InputDecoration(
@@ -240,6 +242,20 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
                 prefixIcon: Icon(Icons.trending_up)),
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
+          ),
+          const SizedBox(height: 12),
+          CheckboxListTile(
+            value: _calculateTaxDeduction,
+            onChanged: (v) => setState(() => _calculateTaxDeduction = v ?? true),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Calculate tax deduction eligibility'),
+            subtitle: const Text(
+              'Tracks donations against the 1% revenue floor for charitable '
+              'tax deductions. Turn this off if you\'re a non-profit or '
+              'don\'t need this tracking.',
+              style: TextStyle(fontSize: 12),
+            ),
           ),
           const Divider(height: 32),
           TextField(

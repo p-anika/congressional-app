@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../models/food_listing.dart';
 import '../providers/auth_provider.dart';
 import '../providers/food_listing_provider.dart';
+import '../providers/delivery_provider.dart';
+import '../providers/user_provider.dart';
 import '../theme.dart';
 import 'allergen_chips.dart';
 import 'quantity_dialog.dart';
@@ -43,9 +45,22 @@ class FoodListingCard extends StatelessWidget {
     }
   }
 
-  Future<void> _buySelf(BuildContext context, int max) async {
+  /// Buys [qty] self-purchased portions. If [deliver] is true, the portion
+  /// is routed through the delivery pipeline instead of self-pickup — the
+  /// person must have a saved location set.
+  Future<void> _buySelf(BuildContext context, int max, {bool deliver = false}) async {
+    final userProvider = context.read<UserProvider>();
+    if (deliver && (userProvider.userLat == null || userProvider.userLng == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Set your location on the My Info tab first so a volunteer can find you.'),
+      ));
+      return;
+    }
+
     final qty = await showQuantityDialog(context,
-        title: 'How many portions to buy?', max: max);
+        title: deliver ? 'How many portions to buy & have delivered?' : 'How many portions to buy?',
+        max: max);
     if (qty == null) return;
     final total = (listing.price ?? 0) * qty;
     final uid = context.read<AuthProvider>().firebaseUser?.uid;
@@ -54,12 +69,17 @@ class FoodListingCard extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Purchase'),
+        title: Text(deliver ? 'Confirm Purchase & Delivery' : 'Confirm Purchase'),
         content: Text(
-            'Buy $qty portion${qty == 1 ? '' : 's'} of "${listing.item}" for \$${total.toStringAsFixed(2)}?'),
+          deliver
+              ? 'Buy $qty portion${qty == 1 ? '' : 's'} of "${listing.item}" for \$${total.toStringAsFixed(2)} and have a volunteer deliver it to your saved location?'
+              : 'Buy $qty portion${qty == 1 ? '' : 's'} of "${listing.item}" for \$${total.toStringAsFixed(2)}?',
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Buy')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(deliver ? 'Buy & Request Delivery' : 'Buy')),
         ],
       ),
     );
@@ -69,15 +89,81 @@ class FoodListingCard extends StatelessWidget {
       await context.read<FoodListingProvider>().purchasePortions(
             listing, uid, qty,
             isSelfPurchase: true,
+            requestDelivery: deliver,
+            dropoffLat: deliver ? userProvider.userLat : null,
+            dropoffLng: deliver ? userProvider.userLng : null,
+            buyerPhone: deliver ? userProvider.user?.phone : null,
           );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Purchased $qty portion${qty == 1 ? '' : 's'} — head over to pick it up!'),
+          content: Text(
+            deliver
+                ? 'Purchased $qty portion${qty == 1 ? '' : 's'} — a volunteer will be notified to deliver it.'
+                : 'Purchased $qty portion${qty == 1 ? '' : 's'} — head over to pick it up!',
+          ),
         ));
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
+  Future<void> _requestDelivery(BuildContext context, int max) async {
+    final userProvider = context.read<UserProvider>();
+    if (userProvider.userLat == null || userProvider.userLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Set your location on the My Info tab first so a volunteer can find you.'),
+      ));
+      return;
+    }
+    final qty = await showQuantityDialog(context,
+        title: 'How many portions should be delivered?', max: max);
+    if (qty == null) return;
+    final uid = context.read<AuthProvider>().firebaseUser?.uid;
+    if (uid == null || !context.mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Request Delivery'),
+        content: Text(
+          'A volunteer will pick up $qty portion${qty == 1 ? '' : 's'} of '
+          '"${listing.item}" and bring it to your saved location. Continue?',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Request')),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await context.read<DeliveryProvider>().requestDelivery(
+            listing: listing,
+            userId: uid,
+            quantity: qty,
+            userLat: userProvider.userLat!,
+            userLng: userProvider.userLng!,
+            userPhone: userProvider.user?.phone,
+          );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Delivery requested for $qty portion${qty == 1 ? '' : 's'}. A volunteer will be notified.'),
+        ));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }
@@ -246,6 +332,30 @@ class FoodListingCard extends StatelessWidget {
                     ),
                 ],
               ),
+              // Delivery for a free/claimed portion
+              if (available > 0) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () => _requestDelivery(context, available),
+                    icon: const Icon(Icons.delivery_dining_outlined, size: 16),
+                    label: const Text('Too Far? Request Delivery'),
+                  ),
+                ),
+              ],
+              // Delivery for a self-purchased portion
+              if (buyable > 0) ...[
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () => _buySelf(context, buyable, deliver: true),
+                    icon: const Icon(Icons.delivery_dining_outlined, size: 16),
+                    label: const Text('Too Far? Buy & Request Delivery'),
+                  ),
+                ),
+              ],
             ],
           ],
         ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../../models/delivery_request.dart';
+import '../../providers/delivery_provider.dart';
 import '../../models/portion_claim.dart';
 import '../../models/food_listing.dart';
 import '../../models/restaurant.dart';
@@ -62,6 +65,27 @@ class MyClaimsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
+                            const SizedBox(height: 20),
+              const Text('Delivery Requests',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 8),
+              StreamBuilder<List<DeliveryRequest>>(
+                stream: context.read<DeliveryProvider>().myRequestedDeliveries(uid),
+                builder: (context, dSnap) {
+                  final requests = dSnap.data ?? [];
+                  if (requests.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('No delivery requests yet.',
+                          style: TextStyle(color: AppColors.textSecondary)),
+                    );
+                  }
+                  return Column(
+                    children:
+                        requests.map((r) => _DeliveryRequestCard(request: r)).toList(),
+                  );
+                },
+              ),
               const Text('Free Claims',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
@@ -128,6 +152,49 @@ class _ClaimCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _DeliveryRequestCard extends StatelessWidget {
+  final DeliveryRequest request;
+  const _DeliveryRequestCard({required this.request});
+
+  Color _statusColor() {
+    switch (request.status) {
+      case 'delivered':
+        return Colors.green;
+      case 'accepted':
+        return AppColors.warning;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return AppColors.textSecondary;
+    }
+  }
+
+  String _statusLabel() {
+    switch (request.status) {
+      case 'delivered':
+        return 'Delivered';
+      case 'accepted':
+        return 'Volunteer on the way';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'Waiting for a volunteer';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        leading: Icon(Icons.delivery_dining_outlined, color: _statusColor()),
+        title: Text('${request.quantity} × ${request.item}'),
+        subtitle: Text('${request.restaurantName} · ${_statusLabel()}'),
+      ),
     );
   }
 }

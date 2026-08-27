@@ -6,6 +6,7 @@ import '../models/app_user.dart';
 import '../models/volunteer.dart';
 import '../models/meal_purchase.dart';
 import '../models/portion_claim.dart';
+import '../models/delivery_request.dart';
 
 class FirebaseService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -349,17 +350,38 @@ class FirebaseService {
     required String buyerId,
     required int quantity,
     required bool isSelfPurchase,
-  }) {
+    bool requestDelivery = false,
+    double? dropoffLat,
+    double? dropoffLng,
+    String? buyerPhone,
+  }) async {
+    // Delivery only makes sense for a self-buyer requesting it for themself —
+    // a volunteer sponsoring for someone else already leaves the portion
+    // open for that person to claim (or request delivery) separately.
+    final wantsDelivery = isSelfPurchase && requestDelivery;
+
+    Restaurant? restaurant;
+    if (wantsDelivery) {
+      if (dropoffLat == null || dropoffLng == null) {
+        throw Exception('A drop-off location is required to request delivery.');
+      }
+      restaurant = await getRestaurantOnce(listing.restaurantId);
+      if (restaurant == null) {
+        throw Exception('Could not find the restaurant for this listing.');
+      }
+    }
+
     final listingRef = _db.collection('foodListings').doc(listing.id);
     final purchaseRef = _db.collection('mealPurchases').doc();
     final claimRef = _db.collection('portionClaims').doc();
+    final deliveryRef = _db.collection('deliveryRequests').doc();
 
     final perPortionCost = listing.cost ?? listing.price ?? 0;
     final marketValue = perPortionCost * quantity;
     final pricePaid = (listing.price ?? 0) * quantity;
     final donation = (marketValue - pricePaid).clamp(0, double.infinity);
 
-    return _db.runTransaction((tx) async {
+    await _db.runTransaction((tx) async {
       final fresh = await tx.get(listingRef);
       final freshListing = FoodListing.fromFirestore(fresh);
       if (!freshListing.isAvailable ||
@@ -404,6 +426,33 @@ class FirebaseService {
           claimedAt: DateTime.now(),
         ).toMap());
       }
+
+      // Self-buyer opted for delivery instead of picking it up themselves —
+      // create a delivery request tied to the same claim, so completeDelivery
+      // later marks the claim/listing completed exactly like a free delivery.
+      if (wantsDelivery) {
+        tx.set(
+          deliveryRef,
+          DeliveryRequest(
+            id: deliveryRef.id,
+            listingId: listing.id,
+            claimId: claimRef.id,
+            restaurantId: listing.restaurantId,
+            restaurantName: restaurant!.name,
+            item: listing.item,
+            quantity: quantity,
+            userId: buyerId,
+            userPhone: buyerPhone ?? '',
+            pickupLat: restaurant.lat,
+            pickupLng: restaurant.lng,
+            pickupAddress: restaurant.address,
+            dropoffLat: dropoffLat!,
+            dropoffLng: dropoffLng!,
+            status: 'pending',
+            requestedAt: DateTime.now(),
+          ).toMap(),
+        );
+      }
     });
   }
 
@@ -421,5 +470,208 @@ class FirebaseService {
         .where('restaurantId', isEqualTo: restaurantId)
         .snapshots()
         .map((snap) => snap.docs.map(MealPurchase.fromFirestore).toList());
+  }
+
+  // ── Delivery Requests ────────────────────────────────────────────────────
+  // A homeless user who thinks a listing is too far to walk to can request
+  // that a volunteer pick it up and bring it to their saved location. This
+  // reserves the portion(s) the same way a free claim does, but tags the
+  // claim with pickup/drop-off coordinates a volunteer can act on.
+
+  static Future<void> requestDelivery({
+    required FoodListing listing,
+    required String userId,
+    required int quantity,
+    required double userLat,
+    required double userLng,
+    String? userPhone,
+  }) async {
+    final restaurant = await getRestaurantOnce(listing.restaurantId);
+    if (restaurant == null) {
+      throw Exception('Could not find the restaurant for this listing.');
+    }
+
+    final listingRef = _db.collection('foodListings').doc(listing.id);
+    final claimRef = _db.collection('portionClaims').doc();
+    final deliveryRef = _db.collection('deliveryRequests').doc();
+
+    await _db.runTransaction((tx) async {
+      final fresh = await tx.get(listingRef);
+      final freshListing = FoodListing.fromFirestore(fresh);
+      if (!freshListing.isAvailable ||
+          freshListing.availablePortions < quantity) {
+        throw Exception(
+            'Not enough portions left — someone else may have just claimed one.');
+      }
+
+      tx.update(listingRef, {
+        'claimedCount': freshListing.claimedCount + quantity,
+      });
+
+      tx.set(
+        claimRef,
+        PortionClaim(
+          id: claimRef.id,
+          listingId: listing.id,
+          restaurantId: listing.restaurantId,
+          userId: userId,
+          quantity: quantity,
+          status: 'claimed',
+          paidBySelf: false,
+          claimedAt: DateTime.now(),
+        ).toMap(),
+      );
+
+      tx.set(
+        deliveryRef,
+        DeliveryRequest(
+          id: deliveryRef.id,
+          listingId: listing.id,
+          claimId: claimRef.id,
+          restaurantId: listing.restaurantId,
+          restaurantName: restaurant.name,
+          item: listing.item,
+          quantity: quantity,
+          userId: userId,
+          userPhone: userPhone ?? '',
+          pickupLat: restaurant.lat,
+          pickupLng: restaurant.lng,
+          pickupAddress: restaurant.address,
+          dropoffLat: userLat,
+          dropoffLng: userLng,
+          status: 'pending',
+          requestedAt: DateTime.now(),
+        ).toMap(),
+      );
+    });
+  }
+
+  static Stream<List<DeliveryRequest>> pendingDeliveryRequestsStream() {
+    return _db
+        .collection('deliveryRequests')
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((snap) => snap.docs.map(DeliveryRequest.fromFirestore).toList());
+  }
+
+  static Stream<List<DeliveryRequest>> volunteerDeliveriesStream(
+      String volunteerId) {
+    return _db
+        .collection('deliveryRequests')
+        .where('volunteerId', isEqualTo: volunteerId)
+        .where('status', isEqualTo: 'accepted')
+        .snapshots()
+        .map((snap) => snap.docs.map(DeliveryRequest.fromFirestore).toList());
+  }
+
+  static Stream<List<DeliveryRequest>> userDeliveryRequestsStream(
+      String userId) {
+    return _db
+        .collection('deliveryRequests')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snap) {
+      final list = snap.docs.map(DeliveryRequest.fromFirestore).toList();
+      list.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+      return list;
+    });
+  }
+
+  static Future<void> acceptDeliveryRequest(
+      String requestId, String volunteerId) {
+    final ref = _db.collection('deliveryRequests').doc(requestId);
+    return _db.runTransaction((tx) async {
+      final fresh = await tx.get(ref);
+      if (!fresh.exists) {
+        throw Exception('This delivery request no longer exists.');
+      }
+      final data = fresh.data() as Map<String, dynamic>;
+      if (data['status'] != 'pending') {
+        throw Exception('Another volunteer already accepted this delivery.');
+      }
+      tx.update(ref, {
+        'volunteerId': volunteerId,
+        'status': 'accepted',
+        'acceptedAt': Timestamp.now(),
+      });
+    });
+  }
+
+  static Future<void> cancelDeliveryRequest(String requestId) async {
+    final ref = _db.collection('deliveryRequests').doc(requestId);
+    final snap = await ref.get();
+    if (!snap.exists) return;
+    final request = DeliveryRequest.fromFirestore(snap);
+    final listingRef = _db.collection('foodListings').doc(request.listingId);
+    final claimRef = _db.collection('portionClaims').doc(request.claimId);
+
+    await _db.runTransaction((tx) async {
+      final freshListingSnap = await tx.get(listingRef);
+      if (freshListingSnap.exists) {
+        final freshListing = FoodListing.fromFirestore(freshListingSnap);
+        final newClaimed = freshListing.claimedCount - request.quantity;
+        tx.update(listingRef, {'claimedCount': newClaimed < 0 ? 0 : newClaimed});
+      }
+      tx.update(claimRef, {'status': 'cancelled'});
+      tx.update(ref, {'status': 'cancelled'});
+    });
+  }
+
+  static Future<void> completeDelivery(String requestId) {
+    final ref = _db.collection('deliveryRequests').doc(requestId);
+    return _db.runTransaction((tx) async {
+      final fresh = await tx.get(ref);
+      if (!fresh.exists) {
+        throw Exception('This delivery request no longer exists.');
+      }
+      final request = DeliveryRequest.fromFirestore(fresh);
+      if (request.status != 'accepted') {
+        throw Exception('This delivery is not in a deliverable state.');
+      }
+
+      final listingRef = _db.collection('foodListings').doc(request.listingId);
+      final claimRef = _db.collection('portionClaims').doc(request.claimId);
+
+      final listingSnap = await tx.get(listingRef);
+      final listing = FoodListing.fromFirestore(listingSnap);
+
+      final newCompleted = listing.completedCount + request.quantity;
+      final newClaimed = listing.claimedCount - request.quantity;
+
+      tx.update(listingRef, {
+        'completedCount': newCompleted,
+        'claimedCount': newClaimed < 0 ? 0 : newClaimed,
+        if (newCompleted >= listing.totalPortions) ...{
+          'isCompleted': true,
+          'completedAt': Timestamp.now(),
+          'isAvailable': false,
+        },
+      });
+
+      tx.update(claimRef, {
+        'status': 'completed',
+        'completedAt': Timestamp.now(),
+      });
+
+      tx.update(ref, {
+        'status': 'delivered',
+        'deliveredAt': Timestamp.now(),
+      });
+    });
+  }
+
+    static Stream<List<DeliveryRequest>> volunteerDeliveryHistoryStream(
+      String volunteerId) {
+    return _db
+        .collection('deliveryRequests')
+        .where('volunteerId', isEqualTo: volunteerId)
+        .where('status', isEqualTo: 'delivered')
+        .snapshots()
+        .map((snap) {
+      final list = snap.docs.map(DeliveryRequest.fromFirestore).toList();
+      list.sort((a, b) =>
+          (b.deliveredAt ?? DateTime(0)).compareTo(a.deliveredAt ?? DateTime(0)));
+      return list;
+    });
   }
 }

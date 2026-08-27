@@ -6,6 +6,7 @@ import 'providers/restaurant_provider.dart';
 import 'providers/food_listing_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/volunteer_provider.dart';
+import 'providers/delivery_provider.dart';
 import 'screens/splash_screen.dart';
 import 'theme.dart';
 import 'firebase_options.dart';
@@ -29,6 +30,7 @@ class FoodRescueApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FoodListingProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => VolunteerProvider()),
+        ChangeNotifierProvider(create: (_) => DeliveryProvider()), // NEW
       ],
       child: MaterialApp(
         title: 'FoodRescue',

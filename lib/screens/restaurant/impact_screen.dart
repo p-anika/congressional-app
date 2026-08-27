@@ -64,8 +64,6 @@ class _ImpactScreenState extends State<ImpactScreen> {
     }
     for (final p in _purchases) {
       totalDonationValue += p.restaurantDonationAmount;
-      // Note: people fed from purchases already counted once the corresponding listing is marked completed above, 
-      // so we don't double-count feedsPeople here. Only the $ discount is added.
     }
 
     final donationPct =
@@ -84,145 +82,172 @@ class _ImpactScreenState extends State<ImpactScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          // ── Revenue context ──────────────────────────────────────────────
-          _SectionHeader(icon: Icons.monetization_on, label: 'Revenue Overview'),
-          const SizedBox(height: 8),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _MetricCard(
-                    label: 'This Year\'s Projected Revenue',
-                    value: _currency.format(projectedRevenue),
-                    icon: Icons.trending_up,
-                    iconColor: AppColors.primary,
+          if (!restaurant.calculateTaxDeduction)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, size: 18, color: AppColors.textSecondary),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tax deduction tracking is turned off for this restaurant. '
+                      'Enable it under My Info to see revenue and 1%-floor progress.',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _MetricCard(
-                    label: '1% of Projected Revenue',
-                    value: _currency.format(floorTarget),
-                    subtitle: 'Minimum to qualify for tax deduction',
-                    icon: Icons.volunteer_activism,
-                    iconColor: Colors.green,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          const SizedBox(height: 24),
+          if (restaurant.calculateTaxDeduction) ...[
+            // ── Revenue context ──────────────────────────────────────────
+            _SectionHeader(icon: Icons.monetization_on, label: 'Revenue Overview'),
+            const SizedBox(height: 8),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _MetricCard(
+                      label: 'This Year\'s Projected Revenue',
+                      value: _currency.format(projectedRevenue),
+                      icon: Icons.trending_up,
+                      iconColor: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _MetricCard(
+                      label: '1% of Projected Revenue',
+                      value: _currency.format(floorTarget),
+                      subtitle: 'Minimum to qualify for tax deduction',
+                      icon: Icons.volunteer_activism,
+                      iconColor: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-          // ── Circular progress ────────────────────────────────────────────
-          _SectionHeader(
-              icon: Icons.pie_chart_outline,
-              label: 'Donation Value as % of Revenue'),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-              child: Center(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 170,
-                      height: 170,
-                      child: CircularProgressIndicator(
-                        value: progressToFloor.clamp(0.0, 1.0),
-                        strokeWidth: 16,
-                        backgroundColor: Colors.grey.shade200,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(progressColor),
-                        strokeCap: StrokeCap.round,
+            const SizedBox(height: 24),
+
+            // ── Circular progress ────────────────────────────────────────
+            _SectionHeader(
+                icon: Icons.pie_chart_outline,
+                label: 'Donation Value as % of Revenue'),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                child: Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 170,
+                        height: 170,
+                        child: CircularProgressIndicator(
+                          value: progressToFloor.clamp(0.0, 1.0),
+                          strokeWidth: 16,
+                          backgroundColor: Colors.grey.shade200,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(progressColor),
+                          strokeCap: StrokeCap.round,
+                        ),
                       ),
-                    ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${(progressToFloor * 100).toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: progressColor,
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${(progressToFloor * 100).toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: progressColor,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'of ${_currency.format(floorTarget)} goal',
-                          style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ],
+                          Text(
+                            'of ${_currency.format(floorTarget)} goal',
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // ── 1% floor status banner ───────────────────────────────────────
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: donationPct >= 1.0
-                  ? Colors.green.shade50
-                  : Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
+            // ── 1% floor status banner ───────────────────────────────────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
                 color: donationPct >= 1.0
-                    ? Colors.green.shade300
-                    : Colors.orange.shade400,
-                width: 1.5,
+                    ? Colors.green.shade50
+                    : Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: donationPct >= 1.0
+                      ? Colors.green.shade300
+                      : Colors.orange.shade400,
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    donationPct >= 1.0
+                        ? Icons.check_circle
+                        : Icons.warning_amber_rounded,
+                    color: donationPct >= 1.0
+                        ? Colors.green.shade700
+                        : Colors.orange.shade800,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: donationPct >= 1.0
+                        ? Text(
+                            'You\'ve met the 1% charitable deduction floor! '
+                            'Your food donations qualify for a tax deduction.',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.green.shade800,
+                            ),
+                          )
+                        : Text(
+                            'You need ${_currency.format((projectedRevenue * 0.01) - totalDonationValue)} '
+                            'more to reach 1% of your revenue.',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.orange.shade900,
+                            ),
+                          ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  donationPct >= 1.0
-                      ? Icons.check_circle
-                      : Icons.warning_amber_rounded,
-                  color: donationPct >= 1.0
-                      ? Colors.green.shade700
-                      : Colors.orange.shade800,
-                  size: 22,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: donationPct >= 1.0
-                      ? Text(
-                          'You\'ve met the 1% charitable deduction floor! '
-                          'Your food donations qualify for a tax deduction.',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Colors.green.shade800,
-                          ),
-                        )
-                      : Text(
-                          'You need ${_currency.format((projectedRevenue * 0.01) - totalDonationValue)} '
-                          'more to reach 1% of your revenue.',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Colors.orange.shade900,
-                          ),
-                        ),
-                ),
-              ],
-            ),
-          ),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+          ],
 
-          // ── Donation value ───────────────────────────────────────────────
+          // ── Donation value (always shown) ────────────────────────────
           _SectionHeader(icon: Icons.people, label: 'Food Donation Impact'),
           const SizedBox(height: 8),
           IntrinsicHeight(
@@ -287,7 +312,6 @@ class _ImpactScreenState extends State<ImpactScreen> {
               ],
             ),
           ),
-
         ],
       ),
     );

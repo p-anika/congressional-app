@@ -86,7 +86,7 @@ class AuthProvider extends ChangeNotifier {
     await FirebaseService.signIn(email, password);
   }
 
-  Future<void> signUpRestaurant({
+    Future<void> signUpRestaurant({
     required String email,
     required String password,
     required String restaurantName,
@@ -97,6 +97,7 @@ class AuthProvider extends ChangeNotifier {
     required double lng,
     double lastYearRevenue = 0.0,
     double projectedGrowth = 0.0,
+    bool calculateTaxDeduction = true,
   }) async {
     final cred = await FirebaseService.signUp(email, password);
     final uid = cred.user!.uid;
@@ -121,6 +122,7 @@ class AuthProvider extends ChangeNotifier {
       ownerId: uid,
       lastYearRevenue: lastYearRevenue,
       projectedGrowth: projectedGrowth,
+      calculateTaxDeduction: calculateTaxDeduction,
     ));
   }
 

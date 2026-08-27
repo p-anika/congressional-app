@@ -19,6 +19,7 @@ class RestaurantProfileScreen extends StatefulWidget {
 class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
   bool _editing = false;
   bool _saving = false;
+  bool _calculateTaxDeduction = true;
   String? _error;
 
   final _name = TextEditingController();
@@ -70,6 +71,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
     _hours.text = restaurant.hoursOfOperation;
     _lastYearRevenue.text = restaurant.lastYearRevenue?.toString() ?? '';
     _projectedGrowth.text = restaurant.projectedGrowth?.toString() ?? '';
+    _calculateTaxDeduction = restaurant.calculateTaxDeduction; // NEW
   }
 
   Future<void> _save() async {
@@ -94,6 +96,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
       'lng': coords['lng'],
       'lastYearRevenue': double.tryParse(_lastYearRevenue.text.trim()),
       'projectedGrowth': double.tryParse(_projectedGrowth.text.trim()),
+      'calculateTaxDeduction': _calculateTaxDeduction, // NEW
     });
     if (mounted) setState(() { _editing = false; _saving = false; });
   }
@@ -193,6 +196,19 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                         _projectedGrowth, Icons.trending_up,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true)),
+                    const SizedBox(height: 8),
+                    CheckboxListTile(
+                      value: _calculateTaxDeduction,
+                      onChanged: (v) =>
+                          setState(() => _calculateTaxDeduction = v ?? true),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Calculate tax deduction eligibility'),
+                      subtitle: const Text(
+                        'Turn off if you don\'t need 1%-floor tracking.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     if (_error != null) ...[
                       Text(_error!,
@@ -237,6 +253,13 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                         restaurant.projectedGrowth != null
                             ? '${restaurant.projectedGrowth!.toStringAsFixed(1)}%'
                             : '—'),
+                    _infoRow(
+                      restaurant.calculateTaxDeduction
+                          ? Icons.receipt_long
+                          : Icons.receipt_long_outlined,
+                      'Tax Deduction Tracking',
+                      restaurant.calculateTaxDeduction ? 'Enabled' : 'Disabled',
+                    ),
                     _infoRow(
                       restaurant.isVerified
                           ? Icons.verified_outlined

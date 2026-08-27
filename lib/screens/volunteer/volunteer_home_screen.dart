@@ -6,6 +6,7 @@ import '../../theme.dart';
 import 'volunteer_buy_meals_screen.dart';
 import 'volunteer_impact_screen.dart';
 import 'volunteer_info_screen.dart';
+import 'volunteer_delivery_requests_screen.dart';
 
 class VolunteerHomeScreen extends StatefulWidget {
   const VolunteerHomeScreen({super.key});
@@ -19,6 +20,7 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
 
   final List<Widget> _screens = const [
     VolunteerBuyMealsScreen(),
+    VolunteerDeliveryRequestsScreen(), // NEW
     VolunteerImpactScreen(),
     VolunteerInfoScreen(),
   ];
@@ -57,7 +59,7 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
             Expanded(child: _screens[_currentIndex]),
           ],
         ),
-        bottomNavigationBar: NavigationBar(
+                bottomNavigationBar: NavigationBar(
           selectedIndex: _currentIndex,
           onDestinationSelected: (i) => setState(() => _currentIndex = i),
           destinations: const [
@@ -65,6 +67,11 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
               icon: Icon(Icons.restaurant_menu_outlined),
               selectedIcon: Icon(Icons.restaurant_menu),
               label: 'Buy Meals',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.delivery_dining_outlined),
+              selectedIcon: Icon(Icons.delivery_dining),
+              label: 'Deliveries',
             ),
             NavigationDestination(
               icon: Icon(Icons.bar_chart_outlined),
