@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/volunteer_provider.dart';
 import '../../theme.dart';
-import 'volunteer_buy_meals_screen.dart';
 import 'volunteer_impact_screen.dart';
 import 'volunteer_info_screen.dart';
 import 'volunteer_delivery_requests_screen.dart';
@@ -19,8 +18,7 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
-    VolunteerBuyMealsScreen(),
-    VolunteerDeliveryRequestsScreen(), // NEW
+    VolunteerDeliveryRequestsScreen(),
     VolunteerImpactScreen(),
     VolunteerInfoScreen(),
   ];
@@ -31,7 +29,6 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
     final uid = context.read<AuthProvider>().firebaseUser?.uid;
     if (uid != null) {
       context.read<VolunteerProvider>().listenToMyVolunteer(uid);
-      context.read<VolunteerProvider>().listenToMyPurchases(uid);
     }
   }
 
@@ -59,15 +56,10 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
             Expanded(child: _screens[_currentIndex]),
           ],
         ),
-                bottomNavigationBar: NavigationBar(
+        bottomNavigationBar: NavigationBar(
           selectedIndex: _currentIndex,
           onDestinationSelected: (i) => setState(() => _currentIndex = i),
           destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.restaurant_menu_outlined),
-              selectedIcon: Icon(Icons.restaurant_menu),
-              label: 'Buy Meals',
-            ),
             NavigationDestination(
               icon: Icon(Icons.delivery_dining_outlined),
               selectedIcon: Icon(Icons.delivery_dining),

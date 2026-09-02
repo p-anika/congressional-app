@@ -4,7 +4,6 @@ import '../models/restaurant.dart';
 import '../models/food_listing.dart';
 import '../models/app_user.dart';
 import '../models/volunteer.dart';
-import '../models/meal_purchase.dart';
 import '../models/portion_claim.dart';
 import '../models/delivery_request.dart';
 
@@ -230,8 +229,9 @@ class FirebaseService {
     });
   }
 
-  // ── Portion Claims (free, or already-sponsored, portions) ───────────────
+  // ── Portion Claims ────────────────────────────────────────────────────────
 
+  // User claims portions; creates a 'pending' claim awaiting restaurant confirmation.
   static Future<void> claimPortions({
     required FoodListing listing,
     required String userId,
@@ -258,18 +258,41 @@ class FirebaseService {
         restaurantId: listing.restaurantId,
         userId: userId,
         quantity: quantity,
-        status: 'claimed',
-        paidBySelf: false,
+        status: 'pending',
         claimedAt: DateTime.now(),
       ).toMap());
     });
   }
 
+  // Restaurant confirms a pending claim — user is coming to pick up.
+  static Future<void> confirmClaim(String claimId) {
+    return _db.collection('portionClaims').doc(claimId).update({
+      'status': 'confirmed',
+    });
+  }
+
+  // Restaurant declines a pending claim — returns portions to the available pool.
+  static Future<void> declineClaim(
+      String claimId, String listingId, int quantity) {
+    final listingRef = _db.collection('foodListings').doc(listingId);
+    final claimRef = _db.collection('portionClaims').doc(claimId);
+
+    return _db.runTransaction((tx) async {
+      final fresh = await tx.get(listingRef);
+      final freshListing = FoodListing.fromFirestore(fresh);
+      final newClaimed = freshListing.claimedCount - quantity;
+      tx.update(listingRef, {'claimedCount': newClaimed < 0 ? 0 : newClaimed});
+      tx.update(claimRef, {'status': 'declined'});
+    });
+  }
+
+  // Returns all pending + confirmed claims for a listing (the restaurant's action queue).
+  // Sorted oldest-first so the restaurant works through claims in order.
   static Stream<List<PortionClaim>> claimsByListing(String listingId) {
     return _db
         .collection('portionClaims')
         .where('listingId', isEqualTo: listingId)
-        .where('status', isEqualTo: 'claimed')
+        .where('status', whereIn: ['pending', 'confirmed'])
         .snapshots()
         .map((snap) {
       final claims = snap.docs.map(PortionClaim.fromFirestore).toList();
@@ -286,9 +309,7 @@ class FirebaseService {
         .map((snap) => snap.docs.map(PortionClaim.fromFirestore).toList());
   }
 
-  // Restaurant marks the oldest outstanding claim on a listing as picked up.
-  // No server-side orderBy here on purpose (see the composite-index lesson
-  // from purchasableListingsStream earlier) — sort client-side instead.
+  // Restaurant marks the oldest confirmed claim as delivered (food handed over).
   static Future<void> completeOldestClaim(String listingId) {
     final listingRef = _db.collection('foodListings').doc(listingId);
 
@@ -296,11 +317,11 @@ class FirebaseService {
       final claimsSnap = await _db
           .collection('portionClaims')
           .where('listingId', isEqualTo: listingId)
-          .where('status', isEqualTo: 'claimed')
+          .where('status', isEqualTo: 'confirmed')
           .get();
 
       if (claimsSnap.docs.isEmpty) {
-        throw Exception('No pending claims to complete for this listing.');
+        throw Exception('No confirmed claims to deliver for this listing.');
       }
 
       final sortedDocs = claimsSnap.docs.toList()
@@ -326,150 +347,10 @@ class FirebaseService {
       });
 
       tx.update(claimDoc.reference, {
-        'status': 'completed',
+        'status': 'delivered',
         'completedAt': Timestamp.now(),
       });
     });
-  }
-
-  // ── Portion Purchases (volunteer sponsoring for someone else, OR a
-  //    homeless person buying a discounted portion for themself) ──────────
-
-  static Stream<List<FoodListing>> purchasableListingsStream() {
-    return _db
-        .collection('foodListings')
-        .snapshots()
-        .map((snap) => snap.docs
-            .map(FoodListing.fromFirestore)
-            .where((l) => l.isAvailable && l.purchasablePortionsRemaining > 0)
-            .toList());
-  }
-
-  static Future<void> purchasePortions({
-    required FoodListing listing,
-    required String buyerId,
-    required int quantity,
-    required bool isSelfPurchase,
-    bool requestDelivery = false,
-    double? dropoffLat,
-    double? dropoffLng,
-    String? buyerPhone,
-  }) async {
-    // Delivery only makes sense for a self-buyer requesting it for themself —
-    // a volunteer sponsoring for someone else already leaves the portion
-    // open for that person to claim (or request delivery) separately.
-    final wantsDelivery = isSelfPurchase && requestDelivery;
-
-    Restaurant? restaurant;
-    if (wantsDelivery) {
-      if (dropoffLat == null || dropoffLng == null) {
-        throw Exception('A drop-off location is required to request delivery.');
-      }
-      restaurant = await getRestaurantOnce(listing.restaurantId);
-      if (restaurant == null) {
-        throw Exception('Could not find the restaurant for this listing.');
-      }
-    }
-
-    final listingRef = _db.collection('foodListings').doc(listing.id);
-    final purchaseRef = _db.collection('mealPurchases').doc();
-    final claimRef = _db.collection('portionClaims').doc();
-    final deliveryRef = _db.collection('deliveryRequests').doc();
-
-    final perPortionCost = listing.cost ?? listing.price ?? 0;
-    final marketValue = perPortionCost * quantity;
-    final pricePaid = (listing.price ?? 0) * quantity;
-    final donation = (marketValue - pricePaid).clamp(0, double.infinity);
-
-    await _db.runTransaction((tx) async {
-      final fresh = await tx.get(listingRef);
-      final freshListing = FoodListing.fromFirestore(fresh);
-      if (!freshListing.isAvailable ||
-          freshListing.purchasablePortionsRemaining < quantity) {
-        throw Exception('Not enough portions left to buy — try a smaller amount.');
-      }
-
-      final updates = <String, dynamic>{
-        'sponsoredCount': freshListing.sponsoredCount + quantity,
-      };
-      if (isSelfPurchase) {
-        updates['claimedCount'] = freshListing.claimedCount + quantity;
-      }
-      tx.update(listingRef, updates);
-
-      tx.set(purchaseRef, MealPurchase(
-        id: purchaseRef.id,
-        listingId: listing.id,
-        restaurantId: listing.restaurantId,
-        volunteerId: buyerId,
-        isSelfPurchase: isSelfPurchase,
-        item: listing.item,
-        portions: quantity,
-        pricePaid: pricePaid,
-        marketValue: marketValue,
-        restaurantDonationAmount: donation.toDouble(),
-        purchasedAt: DateTime.now(),
-      ).toMap());
-
-      // Only self-buyers are immediately "claimed" — a volunteer sponsoring
-      // for someone else leaves the portion open for a homeless person to
-      // claim for free via claimPortions().
-      if (isSelfPurchase) {
-        tx.set(claimRef, PortionClaim(
-          id: claimRef.id,
-          listingId: listing.id,
-          restaurantId: listing.restaurantId,
-          userId: buyerId,
-          quantity: quantity,
-          status: 'claimed',
-          paidBySelf: true,
-          claimedAt: DateTime.now(),
-        ).toMap());
-      }
-
-      // Self-buyer opted for delivery instead of picking it up themselves —
-      // create a delivery request tied to the same claim, so completeDelivery
-      // later marks the claim/listing completed exactly like a free delivery.
-      if (wantsDelivery) {
-        tx.set(
-          deliveryRef,
-          DeliveryRequest(
-            id: deliveryRef.id,
-            listingId: listing.id,
-            claimId: claimRef.id,
-            restaurantId: listing.restaurantId,
-            restaurantName: restaurant!.name,
-            item: listing.item,
-            quantity: quantity,
-            userId: buyerId,
-            userPhone: buyerPhone ?? '',
-            pickupLat: restaurant.lat,
-            pickupLng: restaurant.lng,
-            pickupAddress: restaurant.address,
-            dropoffLat: dropoffLat!,
-            dropoffLng: dropoffLng!,
-            status: 'pending',
-            requestedAt: DateTime.now(),
-          ).toMap(),
-        );
-      }
-    });
-  }
-
-  static Stream<List<MealPurchase>> purchasesByVolunteer(String volunteerId) {
-    return _db
-        .collection('mealPurchases')
-        .where('volunteerId', isEqualTo: volunteerId)
-        .snapshots()
-        .map((snap) => snap.docs.map(MealPurchase.fromFirestore).toList());
-  }
-
-  static Stream<List<MealPurchase>> purchasesByRestaurant(String restaurantId) {
-    return _db
-        .collection('mealPurchases')
-        .where('restaurantId', isEqualTo: restaurantId)
-        .snapshots()
-        .map((snap) => snap.docs.map(MealPurchase.fromFirestore).toList());
   }
 
   // ── Delivery Requests ────────────────────────────────────────────────────
@@ -517,7 +398,6 @@ class FirebaseService {
           userId: userId,
           quantity: quantity,
           status: 'claimed',
-          paidBySelf: false,
           claimedAt: DateTime.now(),
         ).toMap(),
       );

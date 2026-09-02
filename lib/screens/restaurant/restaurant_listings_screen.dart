@@ -44,8 +44,6 @@ class _RestaurantListingsScreenState extends State<RestaurantListingsScreen> {
     if (!mounted || snap.docs.isEmpty) return;
 
     final restaurantId = snap.docs.first.id;
-    print('RestaurantListingsScreen: restaurantId=$restaurantId for uid=$uid');
-
     setState(() => _restaurantId = restaurantId);
 
     _listingsSub = FirebaseFirestore.instance
@@ -89,58 +87,27 @@ class _RestaurantListingsScreenState extends State<RestaurantListingsScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 100),
         children: [
-          // ── Active listings, split by type ──────────────────────────────
-          Builder(builder: (_) {
-            final freeListings = _listings.where((l) => !l.isPurchasable).toList();
-            final purchaseListings = _listings.where((l) => l.isPurchasable).toList();
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text('Active Listings',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: AppColors.textPrimary)),
+          ),
+          if (_listings.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text('No active listings.',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            )
+          else
+            ..._listings.map((l) => _RestaurantListingCard(
+                  listing: l,
+                  onEdit: () => _showEditSheet(context, l),
+                )),
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-                  child: Text('Free Listings',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: AppColors.textPrimary)),
-                ),
-                if (freeListings.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Text('No free listings.',
-                        style: TextStyle(color: AppColors.textSecondary)),
-                  )
-                else
-                  ...freeListings.map((l) => _RestaurantListingCard(
-                        listing: l,
-                        onEdit: () => _showEditSheet(context, l),
-                      )),
-
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 20, 16, 4),
-                  child: Text('For Purchase',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: AppColors.textPrimary)),
-                ),
-                if (purchaseListings.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Text('No listings for purchase.',
-                        style: TextStyle(color: AppColors.textSecondary)),
-                  )
-                else
-                  ...purchaseListings.map((l) => _RestaurantListingCard(
-                        listing: l,
-                        onEdit: () => _showEditSheet(context, l),
-                      )),
-              ],
-            );
-          }),
-
-          // ── Completed orders ─────────────────────────────────────────────
+          // ── Completed orders ───────────────────────────────────────────
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 24, 16, 4),
             child: Text('Completed Orders',
@@ -199,12 +166,10 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
   final _amount = TextEditingController();
   final _feedsPeople = TextEditingController();
   final _cost = TextEditingController();
-  final _price = TextEditingController();
   final _containsCtrl = TextEditingController();
   List<String> _allergens = [];
   List<String> _contains = [];
   bool _saving = false;
-  bool _isPurchasable = false; // false = free listing
 
   @override
   void initState() {
@@ -215,8 +180,6 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
       _amount.text = e.amount;
       _feedsPeople.text = e.feedsPeople.toString();
       _cost.text = e.cost?.toString() ?? '';
-      _price.text = e.price?.toString() ?? '';
-      _isPurchasable = e.isPurchasable;
       _allergens = List.from(e.allergens);
       _contains = List.from(e.contains);
     }
@@ -228,27 +191,13 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
     _amount.dispose();
     _feedsPeople.dispose();
     _cost.dispose();
-    _price.dispose();
     _containsCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    // Validate price doesn't exceed market cost when purchasable
-    final costValue = double.tryParse(_cost.text.trim());
-    final priceValue = _isPurchasable ? double.tryParse(_price.text.trim()) : null;
-    if (_isPurchasable) {
-      if (priceValue == null) {
-        _showError('Enter a valid price for this meal.');
-        return;
-      }
-      if (costValue != null && priceValue > costValue) {
-        _showError('Price cannot exceed the market cost per portion.');
-        return;
-      }
-    }
-    
     setState(() => _saving = true);
+    final costValue = double.tryParse(_cost.text.trim());
     final provider = context.read<FoodListingProvider>();
     try {
       if (widget.existing != null) {
@@ -259,7 +208,6 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
           'allergens': _allergens,
           'contains': _contains,
           'cost': costValue,
-          'price': priceValue,
         });
       } else {
         await FirebaseFirestore.instance.collection('foodListings').add({
@@ -273,20 +221,14 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
           'createdAt': Timestamp.now(),
           'expiresAt': null,
           'cost': costValue,
-          'price': priceValue,
-          'sponsoredByVolunteerId': null,
-          'sponsoredAt': null,
+          'claimedCount': 0,
+          'completedCount': 0,
         });
       }
       if (mounted) Navigator.pop(context);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-  }
-
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
   }
 
   void _addContainsTag() {
@@ -326,7 +268,8 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
               controller: _amount,
               decoration: const InputDecoration(
                 labelText: 'Description (e.g. "family-size trays")',
-                helperText: 'Just a description — the portion count below is what matters for claiming.',
+                helperText:
+                    'Just a description — the portion count below is what matters for claiming.',
               ),
             ),
             const SizedBox(height: 12),
@@ -334,7 +277,7 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
               controller: _feedsPeople,
               decoration: const InputDecoration(
                 labelText: 'Number of portions',
-                helperText: 'This is what people actually claim or buy against.',
+                helperText: 'This is what people actually claim against.',
               ),
               keyboardType: TextInputType.number,
             ),
@@ -342,34 +285,10 @@ class _AddFoodListingSheetState extends State<_AddFoodListingSheet> {
             TextField(
               controller: _cost,
               decoration: const InputDecoration(
-                  labelText: 'Market cost per portion (\$)'),
+                  labelText: 'Market cost per portion (\$)',
+                  helperText: 'Used for donation value tracking on the Impact tab.'),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
-            const SizedBox(height: 16),
-
-            // ── NEW: Free / For Purchase toggle ──────────────────────────
-            const Text('Listing Type', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: false, label: Text('Free')),
-                ButtonSegment(value: true, label: Text('For Purchase')),
-              ],
-              selected: {_isPurchasable},
-              onSelectionChanged: (v) => setState(() => _isPurchasable = v.first),
-            ),
-            if (_isPurchasable) ...[
-              const SizedBox(height: 12),
-              TextField(
-                controller: _price,
-                decoration: const InputDecoration(
-                  labelText: 'Price per portion (\$)',
-                  helperText: 'A volunteer pays this amount to sponsor the meal.',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              ),
-            ],
-
             const SizedBox(height: 16),
             const Text('Allergens',
                 style: TextStyle(fontWeight: FontWeight.w600)),
@@ -436,13 +355,47 @@ class _RestaurantListingCard extends StatelessWidget {
     this.onEdit,
   });
 
+  Future<void> _confirmOldestPending(
+      BuildContext context, List<PortionClaim> pending) async {
+    final sorted = pending.toList()
+      ..sort((a, b) => a.claimedAt.compareTo(b.claimedAt));
+    try {
+      await FirebaseService.confirmClaim(sorted.first.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Claim confirmed.')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
 
-  Future<void> _markPortionPickedUp(BuildContext context) async {
+  Future<void> _declineOldestPending(
+      BuildContext context, List<PortionClaim> pending) async {
+    final sorted = pending.toList()
+      ..sort((a, b) => a.claimedAt.compareTo(b.claimedAt));
+    final claim = sorted.first;
+    try {
+      await FirebaseService.declineClaim(claim.id, listing.id, claim.quantity);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Claim declined.')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
+  Future<void> _markDelivered(BuildContext context) async {
     try {
       await FirebaseService.completeOldestClaim(listing.id);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marked one portion as picked up.')),
+          const SnackBar(content: Text('Marked as delivered.')),
         );
       }
     } catch (e) {
@@ -554,53 +507,94 @@ class _RestaurantListingCard extends StatelessWidget {
                   style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             ],
             const SizedBox(height: 4),
-            if (listing.isPurchasable) ...[
-              Row(
-                children: [
-                  const Icon(Icons.sell_outlined, size: 14, color: AppColors.warning),
-                  const SizedBox(width: 4),
-                  Text(
-                    '\$${listing.price!.toStringAsFixed(2)}/portion · ${listing.sponsoredCount} of ${listing.totalPortions} sponsored',
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.warning),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-            ],
             Row(
               children: [
                 const Icon(Icons.check_circle_outline, size: 14, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
-                Text('${listing.completedCount} of ${listing.totalPortions} portions picked up',
+                Text('${listing.completedCount} of ${listing.totalPortions} portions delivered',
                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
               ],
             ),
             const SizedBox(height: 8),
+            // ── Claim queue ─────────────────────────────────────────────
             StreamBuilder<List<PortionClaim>>(
               stream: FirebaseService.claimsByListing(listing.id),
               builder: (context, snap) {
-                final pending = snap.data ?? [];
-                final pendingCount = pending.fold<int>(0, (sum, c) => sum + c.quantity);
-                if (pendingCount == 0) {
-                  return const Text('No portions currently claimed through the app.',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12));
+                final claims = snap.data ?? [];
+                final pendingClaims =
+                    claims.where((c) => c.status == 'pending').toList();
+                final confirmedClaims =
+                    claims.where((c) => c.status == 'confirmed').toList();
+                final pendingCount = pendingClaims.fold<int>(
+                    0, (sum, c) => sum + c.quantity);
+                final confirmedCount = confirmedClaims.fold<int>(
+                    0, (sum, c) => sum + c.quantity);
+
+                if (pendingCount == 0 && confirmedCount == 0) {
+                  return const Text('No active claims.',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12));
                 }
-                return Row(
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text('$pendingCount portion${pendingCount == 1 ? '' : 's'} awaiting pickup',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textPrimary)),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _markPortionPickedUp(context),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('Mark Picked Up'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
+                    if (pendingCount > 0) ...[
+                      Text(
+                        '$pendingCount portion${pendingCount == 1 ? '' : 's'} claimed — confirm or decline:',
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textPrimary),
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          TextButton.icon(
+                            onPressed: () =>
+                                _confirmOldestPending(context, pendingClaims),
+                            icon: const Icon(Icons.check, size: 16,
+                                color: Colors.green),
+                            label: const Text('Confirm',
+                                style: TextStyle(color: Colors.green)),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              minimumSize: Size.zero,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () =>
+                                _declineOldestPending(context, pendingClaims),
+                            icon: const Icon(Icons.close, size: 16,
+                                color: Colors.red),
+                            label: const Text('Decline',
+                                style: TextStyle(color: Colors.red)),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              minimumSize: Size.zero,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (confirmedCount > 0) ...[
+                      Text(
+                        '$confirmedCount portion${confirmedCount == 1 ? '' : 's'} confirmed — awaiting pickup:',
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      TextButton.icon(
+                        onPressed: () => _markDelivered(context),
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text('Mark Delivered'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                        ),
+                      ),
+                    ],
                   ],
                 );
               },
@@ -615,7 +609,10 @@ class _RestaurantListingCard extends StatelessWidget {
                 spacing: 4,
                 children: listing.contains
                     .map((c) => Chip(
-                          label: Text(c, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          label: Text(c,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary)),
                           backgroundColor: AppColors.background,
                           padding: EdgeInsets.zero,
                           visualDensity: VisualDensity.compact,
@@ -631,10 +628,12 @@ class _RestaurantListingCard extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: () => _recordWalkIn(context),
                       icon: const Icon(Icons.person_outline, size: 16),
-                      label: const Text('Walk-in Took One', style: TextStyle(fontSize: 12)),
+                      label: const Text('Walk-in Took One',
+                          style: TextStyle(fontSize: 12)),
                       style: OutlinedButton.styleFrom(
                         minimumSize: Size.zero,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 10),
                       ),
                     ),
                   ),
@@ -646,7 +645,8 @@ class _RestaurantListingCard extends StatelessWidget {
                       minimumSize: Size.zero,
                       padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
-                    child: const Text('End Listing', style: TextStyle(fontSize: 12)),
+                    child: const Text('End Listing',
+                        style: TextStyle(fontSize: 12)),
                   ),
                 ),
               ],
@@ -662,8 +662,6 @@ class _CompletedListingCard extends StatelessWidget {
   final FoodListing listing;
 
   const _CompletedListingCard({required this.listing});
-
-  String _formatAmount(String amount) => amount.trim();
 
   String _formatDate(DateTime? dt) {
     if (dt == null) return '';
@@ -695,7 +693,7 @@ class _CompletedListingCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${_formatAmount(listing.amount)} · ${listing.feedsPeople} portions total',
+                    '${listing.amount.trim().isEmpty ? '' : '${listing.amount.trim()} · '}${listing.feedsPeople} portions total',
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.textSecondary),
                   ),

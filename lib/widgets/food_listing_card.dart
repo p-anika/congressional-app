@@ -35,71 +35,9 @@ class FoodListingCard extends StatelessWidget {
       await context.read<FoodListingProvider>().claimPortions(listing, uid, qty);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('You\'re claimed for $qty portion${qty == 1 ? '' : 's'} — head over to pick it up!'),
-        ));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
-    }
-  }
-
-  /// Buys [qty] self-purchased portions. If [deliver] is true, the portion
-  /// is routed through the delivery pipeline instead of self-pickup — the
-  /// person must have a saved location set.
-  Future<void> _buySelf(BuildContext context, int max, {bool deliver = false}) async {
-    final userProvider = context.read<UserProvider>();
-    if (deliver && (userProvider.userLat == null || userProvider.userLng == null)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Set your location on the My Info tab first so a volunteer can find you.'),
-      ));
-      return;
-    }
-
-    final qty = await showQuantityDialog(context,
-        title: deliver ? 'How many portions to buy & have delivered?' : 'How many portions to buy?',
-        max: max);
-    if (qty == null) return;
-    final total = (listing.price ?? 0) * qty;
-    final uid = context.read<AuthProvider>().firebaseUser?.uid;
-    if (uid == null || !context.mounted) return;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(deliver ? 'Confirm Purchase & Delivery' : 'Confirm Purchase'),
-        content: Text(
-          deliver
-              ? 'Buy $qty portion${qty == 1 ? '' : 's'} of "${listing.item}" for \$${total.toStringAsFixed(2)} and have a volunteer deliver it to your saved location?'
-              : 'Buy $qty portion${qty == 1 ? '' : 's'} of "${listing.item}" for \$${total.toStringAsFixed(2)}?',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(deliver ? 'Buy & Request Delivery' : 'Buy')),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    try {
-      await context.read<FoodListingProvider>().purchasePortions(
-            listing, uid, qty,
-            isSelfPurchase: true,
-            requestDelivery: deliver,
-            dropoffLat: deliver ? userProvider.userLat : null,
-            dropoffLng: deliver ? userProvider.userLng : null,
-            buyerPhone: deliver ? userProvider.user?.phone : null,
-          );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-            deliver
-                ? 'Purchased $qty portion${qty == 1 ? '' : 's'} — a volunteer will be notified to deliver it.'
-                : 'Purchased $qty portion${qty == 1 ? '' : 's'} — head over to pick it up!',
+            'Claimed $qty portion${qty == 1 ? '' : 's'} — '
+            'pending restaurant confirmation.',
           ),
         ));
       }
@@ -171,11 +109,8 @@ class FoodListingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasConflict = listing.hasAllergenConflict(userAllergies);
-    // Restaurant management screens pass onEdit/onDelete; homeless-facing
-    // screens (RestaurantDetailScreen, MapScreen) never do.
     final isHomelessView = onEdit == null && onDelete == null;
     final available = listing.availablePortions;
-    final buyable = listing.purchasablePortionsRemaining;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -215,28 +150,6 @@ class FoodListingCard extends StatelessWidget {
                   ),
               ],
             ),
-            if (listing.isPurchasable) ...[
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.allergenChip.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.attach_money, size: 14, color: AppColors.allergenChip),
-                    const SizedBox(width: 4),
-                    Text(
-                      '\$${listing.price!.toStringAsFixed(2)}/portion',
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.allergenChip),
-                    ),
-                  ],
-                ),
-              ),
-            ],
             const SizedBox(height: 6),
             Row(
               children: [
@@ -251,8 +164,10 @@ class FoodListingCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 const Icon(Icons.people_outline, size: 14, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
-                Text('$available of ${listing.totalPortions} portions available',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                Text(
+                  '$available portion${available == 1 ? '' : 's'} available',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                ),
               ],
             ),
             if (listing.isLastPortion && available > 0) ...[
@@ -293,69 +208,24 @@ class FoodListingCard extends StatelessWidget {
                     .toList(),
               ),
             ],
-            if (isHomelessView && listing.isAvailable) ...[
+            if (isHomelessView && listing.isAvailable && available > 0) ...[
               const SizedBox(height: 10),
-              if (available > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    '$available free portion${available == 1 ? '' : 's'} available right now',
-                    style: const TextStyle(
-                        fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600),
-                  ),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => _claim(context, available),
+                  child: const Text('I\'m Coming For This'),
                 ),
-              if (buyable > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    '$buyable more available to buy at \$${listing.price?.toStringAsFixed(2) ?? '0.00'} each',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.allergenChip, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              Row(
-                children: [
-                  if (available > 0)
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => _claim(context, available),
-                        child: const Text('I\'m Coming For This'),
-                      ),
-                    ),
-                  if (available > 0 && buyable > 0) const SizedBox(width: 8),
-                  if (buyable > 0)
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => _buySelf(context, buyable),
-                        child: const Text('Buy a Portion'),
-                      ),
-                    ),
-                ],
               ),
-              // Delivery for a free/claimed portion
-              if (available > 0) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    onPressed: () => _requestDelivery(context, available),
-                    icon: const Icon(Icons.delivery_dining_outlined, size: 16),
-                    label: const Text('Too Far? Request Delivery'),
-                  ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: () => _requestDelivery(context, available),
+                  icon: const Icon(Icons.delivery_dining_outlined, size: 16),
+                  label: const Text('Too Far? Request Delivery'),
                 ),
-              ],
-              // Delivery for a self-purchased portion
-              if (buyable > 0) ...[
-                const SizedBox(height: 4),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    onPressed: () => _buySelf(context, buyable, deliver: true),
-                    icon: const Icon(Icons.delivery_dining_outlined, size: 16),
-                    label: const Text('Too Far? Buy & Request Delivery'),
-                  ),
-                ),
-              ],
+              ),
             ],
           ],
         ),

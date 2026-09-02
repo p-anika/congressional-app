@@ -10,10 +10,16 @@ class FoodListingProvider extends ChangeNotifier {
   StreamSubscription? _allListingsSub;
 
   List<FoodListing> get myListings => _myListings;
-  List<FoodListing> get allListings => _allListings;
+
+  /// Only listings that still have at least one claimable portion.
+  /// Exhausted listings (availablePortions == 0) are hidden from user-facing views.
+  List<FoodListing> get allListings =>
+      _allListings.where((l) => l.availablePortions > 0).toList();
 
   List<FoodListing> listingsForRestaurant(String restaurantId) {
-    return _allListings.where((l) => l.restaurantId == restaurantId).toList();
+    return _allListings
+        .where((l) => l.restaurantId == restaurantId && l.availablePortions > 0)
+        .toList();
   }
 
   void listenToMyListings(String restaurantId) {
@@ -44,7 +50,6 @@ class FoodListingProvider extends ChangeNotifier {
     required List<String> contains,
     DateTime? expiresAt,
     double? cost,
-    double? price,
   }) async {
     final listing = FoodListing(
       id: '',
@@ -58,7 +63,6 @@ class FoodListingProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
       expiresAt: expiresAt,
       cost: cost,
-      price: price,
     );
     await FirebaseService.addFoodListing(listing);
   }
@@ -73,28 +77,6 @@ class FoodListingProvider extends ChangeNotifier {
   Future<void> claimPortions(FoodListing listing, String userId, int quantity) async {
     await FirebaseService.claimPortions(
         listing: listing, userId: userId, quantity: quantity);
-  }
-
-  Future<void> purchasePortions(
-    FoodListing listing,
-    String buyerId,
-    int quantity, {
-    bool isSelfPurchase = false,
-    bool requestDelivery = false,
-    double? dropoffLat,
-    double? dropoffLng,
-    String? buyerPhone,
-  }) async {
-    await FirebaseService.purchasePortions(
-      listing: listing,
-      buyerId: buyerId,
-      quantity: quantity,
-      isSelfPurchase: isSelfPurchase,
-      requestDelivery: requestDelivery,
-      dropoffLat: dropoffLat,
-      dropoffLng: dropoffLng,
-      buyerPhone: buyerPhone,
-    );
   }
 
   Future<void> deleteListing(String id) async {

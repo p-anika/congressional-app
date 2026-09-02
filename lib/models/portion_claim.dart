@@ -6,8 +6,16 @@ class PortionClaim {
   final String restaurantId;
   final String userId;
   final int quantity;
-  final String status; // 'claimed' | 'completed'
-  final bool paidBySelf; // true if this user bought it themselves (not free/sponsored)
+  // Status flow for regular (in-person pickup) claims:
+  //   'pending'   — user claimed, awaiting restaurant confirmation
+  //   'confirmed' — restaurant confirmed, user is coming to pick up
+  //   'declined'  — restaurant declined; portions returned to available pool
+  //   'delivered' — food handed over in person
+  // Status flow for delivery-based claims (created alongside a DeliveryRequest):
+  //   'claimed'   — delivery claim reserved
+  //   'completed' — delivery completed via completeDelivery()
+  //   'cancelled' — delivery request was cancelled
+  final String status;
   final DateTime claimedAt;
   final DateTime? completedAt;
 
@@ -18,7 +26,6 @@ class PortionClaim {
     required this.userId,
     required this.quantity,
     required this.status,
-    this.paidBySelf = false,
     required this.claimedAt,
     this.completedAt,
   });
@@ -31,8 +38,7 @@ class PortionClaim {
       restaurantId: data['restaurantId'] ?? '',
       userId: data['userId'] ?? '',
       quantity: (data['quantity'] ?? 1).toInt(),
-      status: data['status'] ?? 'claimed',
-      paidBySelf: data['paidBySelf'] ?? false,
+      status: data['status'] ?? 'pending',
       claimedAt: (data['claimedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
     );
@@ -45,7 +51,6 @@ class PortionClaim {
       'userId': userId,
       'quantity': quantity,
       'status': status,
-      'paidBySelf': paidBySelf,
       'claimedAt': Timestamp.fromDate(claimedAt),
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
     };

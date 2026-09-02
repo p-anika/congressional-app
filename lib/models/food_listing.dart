@@ -11,14 +11,11 @@ class FoodListing {
   final bool isAvailable;
   final DateTime createdAt;
   final DateTime? expiresAt;
-  final double? cost; // market value per portion
-  final bool isCompleted; // true once every portion has been picked up
+  final double? cost; // market value per portion (for donation tracking)
+  final bool isCompleted;
   final DateTime? completedAt;
-
-  final double? price; // null/0 = free; >0 = purchasable per portion
-  final int claimedCount;   // portions claimed (free or sponsored), awaiting pickup
-  final int completedCount; // portions actually picked up
-  final int sponsoredCount; // portions paid for (volunteer or self-buyer)
+  final int claimedCount;   // portions reserved (pending/confirmed claims), awaiting delivery
+  final int completedCount; // portions actually handed over
 
   FoodListing({
     required this.id,
@@ -34,25 +31,13 @@ class FoodListing {
     this.cost,
     this.isCompleted = false,
     this.completedAt,
-    this.price,
     this.claimedCount = 0,
     this.completedCount = 0,
-    this.sponsoredCount = 0,
   });
-
-  bool get isPurchasable => (price ?? 0) > 0;
 
   int get totalPortions => feedsPeople;
 
-  /// Portions a homeless person can claim right now for free — either
-  /// originally free, or already paid for by a volunteer/self-buyer.
-  int get availablePortions => isPurchasable
-      ? (sponsoredCount - claimedCount - completedCount)
-      : (totalPortions - claimedCount - completedCount);
-
-  /// Portions still open for a volunteer (or the homeless person themself) to buy.
-  int get purchasablePortionsRemaining =>
-      isPurchasable ? (totalPortions - sponsoredCount) : 0;
+  int get availablePortions => totalPortions - claimedCount - completedCount;
 
   bool get isLastPortion => availablePortions == 1;
   bool get isFullyClaimed => completedCount >= totalPortions;
@@ -73,10 +58,8 @@ class FoodListing {
       cost: (data['cost'] as num?)?.toDouble(),
       isCompleted: data['isCompleted'] ?? false,
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
-      price: (data['price'] as num?)?.toDouble(),
       claimedCount: (data['claimedCount'] ?? 0).toInt(),
       completedCount: (data['completedCount'] ?? 0).toInt(),
-      sponsoredCount: (data['sponsoredCount'] ?? 0).toInt(),
     );
   }
 
@@ -94,10 +77,8 @@ class FoodListing {
       'cost': cost,
       'isCompleted': isCompleted,
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
-      'price': price,
       'claimedCount': claimedCount,
       'completedCount': completedCount,
-      'sponsoredCount': sponsoredCount,
     };
   }
 
