@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppColors {
   static const Color restaurantPrimary = Color.fromARGB(255, 58, 125, 104);
   static const Color userPrimary = Color.fromARGB(255, 131, 170, 187);
-  static const Color volunteerPrimary = Color.fromARGB(255, 218, 187, 125); // pick your own
+  static const Color volunteerPrimary = Color.fromARGB(255, 154, 135, 190); // pick your own
 
   static const Color primary = restaurantPrimary;
   static const Color primaryDark = Color.fromARGB(255, 58, 125, 104);
