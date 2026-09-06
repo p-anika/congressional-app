@@ -330,13 +330,64 @@ class _ImpactScreenState extends State<ImpactScreen> {
     );
     if (range == null || !mounted) return;
 
-    final bytes = await TaxReceiptService.generateAnnualReceipt(
-      restaurant: restaurant,
-      completedListings: _allListings,
-      periodStart: range.start,
-      periodEnd: range.end,
+    final hasDonationsInRange = _allListings.any((l) {
+      final d = l.completedAt;
+      return d != null &&
+          !d.isBefore(range.start) &&
+          !d.isAfter(range.end) &&
+          l.completedCount > 0;
+    });
+
+    if (!hasDonationsInRange) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No Donations Found'),
+          content: Text(
+            'No completed donations were recorded between '
+            '${DateFormat('MMM d, yyyy').format(range.start)} and '
+            '${DateFormat('MMM d, yyyy').format(range.end)}. '
+            'Try a different date range.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Immediate visual feedback while the PDF is generated.
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
-    await Printing.layoutPdf(onLayout: (_) async => bytes);
+
+    try {
+      final bytes = await TaxReceiptService.generateAnnualReceipt(
+        restaurant: restaurant,
+        completedListings: _allListings,
+        periodStart: range.start,
+        periodEnd: range.end,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // close the spinner
+
+      final fileName =
+          'donation_summary_${DateFormat('yyyyMMdd').format(range.start)}'
+          '_${DateFormat('yyyyMMdd').format(range.end)}.pdf';
+
+      await Printing.sharePdf(bytes: bytes, filename: fileName);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // close the spinner
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not generate the summary: $e')),
+      );
+    }
   }
 }
 

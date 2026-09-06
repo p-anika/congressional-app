@@ -6,7 +6,6 @@ import 'role_select_screen.dart';
 import 'restaurant/restaurant_home_screen.dart';
 import 'user/user_home_screen.dart';
 import 'volunteer/volunteer_home_screen.dart';
-import 'home_stats_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -41,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
         final user = authSnap.data;
         if (user == null) {
-          return const HomeStatsScreen();
+          return const RoleSelectScreen();
         }
 
         // Cache the future so rebuilds don't re-trigger the GET
