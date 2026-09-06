@@ -29,6 +29,11 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
   final _lastYearRevenue = TextEditingController();
   final _projectedGrowth = TextEditingController();
 
+  final _businessLicense = TextEditingController();
+  final _stateRegistration = TextEditingController();
+  final _foodHandlerPermit = TextEditingController();
+  final _einOrTaxId = TextEditingController();
+
   late RestaurantProvider _restaurantProvider;
 
   @override
@@ -51,6 +56,10 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
     _hours.dispose();
     _lastYearRevenue.dispose();
     _projectedGrowth.dispose();
+    _businessLicense.dispose();
+    _stateRegistration.dispose();
+    _foodHandlerPermit.dispose();
+    _einOrTaxId.dispose();
     super.dispose();
   }
 
@@ -71,7 +80,11 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
     _hours.text = restaurant.hoursOfOperation;
     _lastYearRevenue.text = restaurant.lastYearRevenue?.toString() ?? '';
     _projectedGrowth.text = restaurant.projectedGrowth?.toString() ?? '';
-    _calculateTaxDeduction = restaurant.calculateTaxDeduction; // NEW
+    _calculateTaxDeduction = restaurant.calculateTaxDeduction;
+    _businessLicense.text = restaurant.businessLicenseNumber ?? '';
+    _stateRegistration.text = restaurant.stateRegistrationNumber ?? '';
+    _foodHandlerPermit.text = restaurant.foodHandlerPermitNumber ?? '';
+    _einOrTaxId.text = restaurant.einOrTaxId ?? '';
   }
 
   Future<void> _save() async {
@@ -96,7 +109,11 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
       'lng': coords['lng'],
       'lastYearRevenue': double.tryParse(_lastYearRevenue.text.trim()),
       'projectedGrowth': double.tryParse(_projectedGrowth.text.trim()),
-      'calculateTaxDeduction': _calculateTaxDeduction, // NEW
+      'calculateTaxDeduction': _calculateTaxDeduction,
+      'businessLicenseNumber': _businessLicense.text.trim(),
+      'stateRegistrationNumber': _stateRegistration.text.trim(),
+      'foodHandlerPermitNumber': _foodHandlerPermit.text.trim(),
+      'einOrTaxId': _einOrTaxId.text.trim(),
     });
     if (mounted) setState(() { _editing = false; _saving = false; });
   }
@@ -209,6 +226,30 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                         style: TextStyle(fontSize: 12),
                       ),
                     ),
+                    const Divider(height: 32),
+                    const Text('Licensing & Tax Info',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: AppColors.textPrimary)),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Optional, but recommended for donation recordkeeping.',
+                      style:
+                          TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 14),
+                    _field('Business License Number', _businessLicense,
+                        Icons.badge_outlined),
+                    const SizedBox(height: 14),
+                    _field('State Registration Number', _stateRegistration,
+                        Icons.assignment_outlined),
+                    const SizedBox(height: 14),
+                    _field('Food Handler Permit Number', _foodHandlerPermit,
+                        Icons.verified_user_outlined),
+                    const SizedBox(height: 14),
+                    _field('EIN / Tax ID', _einOrTaxId,
+                        Icons.numbers_outlined),
                     const SizedBox(height: 24),
                     if (_error != null) ...[
                       Text(_error!,
@@ -272,6 +313,21 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
                           ? AppColors.primary
                           : AppColors.warning,
                     ),
+                    const Divider(height: 32),
+                    const Text('Licensing & Tax Info',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: AppColors.textPrimary)),
+                    const SizedBox(height: 4),
+                    _infoRow(Icons.badge_outlined, 'Business License',
+                        restaurant.businessLicenseNumber ?? ''),
+                    _infoRow(Icons.assignment_outlined, 'State Registration',
+                        restaurant.stateRegistrationNumber ?? ''),
+                    _infoRow(Icons.verified_user_outlined, 'Food Handler Permit',
+                        restaurant.foodHandlerPermitNumber ?? ''),
+                    _infoRow(Icons.numbers_outlined, 'EIN / Tax ID',
+                        restaurant.einOrTaxId ?? ''),
                   ],
                 ],
               ),

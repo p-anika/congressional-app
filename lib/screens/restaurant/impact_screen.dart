@@ -2,10 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:printing/printing.dart';
 import '../../models/food_listing.dart';
+import '../../models/restaurant.dart';
 import '../../providers/restaurant_provider.dart';
 import '../../services/firebase_service.dart';
+import '../../services/tax_receipt_service.dart';
 import '../../theme.dart';
+import '../../widgets/good_samaritan_info_card.dart';
 
 class ImpactScreen extends StatefulWidget {
   const ImpactScreen({super.key});
@@ -71,6 +75,8 @@ class _ImpactScreenState extends State<ImpactScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
+          const GoodSamaritanInfoCard(),
+          const SizedBox(height: 16), 
           if (!restaurant.calculateTaxDeduction)
             Container(
               width: double.infinity,
@@ -301,9 +307,36 @@ class _ImpactScreenState extends State<ImpactScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => _downloadReceipt(restaurant),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: const Text('Download Donation Summary (for your accountant)'),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _downloadReceipt(Restaurant restaurant) async {
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: DateTimeRange(
+        start: DateTime(DateTime.now().year, 1, 1),
+        end: DateTime.now(),
+      ),
+    );
+    if (range == null || !mounted) return;
+
+    final bytes = await TaxReceiptService.generateAnnualReceipt(
+      restaurant: restaurant,
+      completedListings: _allListings,
+      periodStart: range.start,
+      periodEnd: range.end,
+    );
+    await Printing.layoutPdf(onLayout: (_) async => bytes);
   }
 }
 

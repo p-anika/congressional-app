@@ -32,6 +32,9 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
   final _hours = TextEditingController();
   final _lastYearRevenue = TextEditingController();
   final _projectedGrowth = TextEditingController();
+  final _businessLicense = TextEditingController();
+  final _stateRegistration = TextEditingController();
+  final _foodHandlerPermit = TextEditingController();
 
   @override
   void initState() {
@@ -52,6 +55,9 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
     _hours.dispose();
     _lastYearRevenue.dispose();
     _projectedGrowth.dispose();
+    _businessLicense.dispose();
+    _stateRegistration.dispose();
+    _foodHandlerPermit.dispose();
     super.dispose();
   }
 
@@ -105,7 +111,10 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
             double.tryParse(_lastYearRevenue.text.trim()) ?? 0.0,
         projectedGrowth:
             double.tryParse(_projectedGrowth.text.trim()) ?? 0.0,
-        calculateTaxDeduction: _calculateTaxDeduction, // NEW
+        calculateTaxDeduction: _calculateTaxDeduction,
+        businessLicenseNumber: _businessLicense.text.trim(),
+        stateRegistrationNumber: _stateRegistration.text.trim(),
+        foodHandlerPermitNumber: _foodHandlerPermit.text.trim(),
       );
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -224,6 +233,30 @@ class _RestaurantAuthScreenState extends State<RestaurantAuthScreen>
             decoration: const InputDecoration(
                 labelText: 'Hours of Operation (e.g. Mon-Fri 9am-9pm)',
                 prefixIcon: Icon(Icons.schedule_outlined)),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _businessLicense,
+            decoration: const InputDecoration(
+              labelText: 'Business License Number',
+              prefixIcon: Icon(Icons.badge_outlined),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _stateRegistration,
+            decoration: const InputDecoration(
+              labelText: 'State Registration Number',
+              prefixIcon: Icon(Icons.assignment_outlined),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _foodHandlerPermit,
+            decoration: const InputDecoration(
+              labelText: 'Food Handler Permit Number',
+              prefixIcon: Icon(Icons.verified_user_outlined),
+            ),
           ),
           const SizedBox(height: 16),
           TextField(

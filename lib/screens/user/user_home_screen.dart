@@ -9,6 +9,7 @@ import 'map_screen.dart';
 import 'list_screen.dart';
 import 'my_claims_screen.dart';
 import 'my_info_screen.dart';
+import 'resources_screen.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -24,6 +25,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     const MapScreen(),
     const ListScreen(),
     const MyClaimsScreen(),
+    const ResourcesScreen(),
     const MyInfoScreen(),
   ];
 
@@ -62,6 +64,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
               icon: Icon(Icons.receipt_long_outlined),
               selectedIcon: Icon(Icons.receipt_long),
               label: 'My Claims',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.support_outlined),
+              selectedIcon: Icon(Icons.support),
+              label: 'Resources',
             ),
             NavigationDestination(
               icon: Icon(Icons.person_outline),

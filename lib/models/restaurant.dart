@@ -13,6 +13,11 @@ class Restaurant {
   final double? lastYearRevenue;
   final double? projectedGrowth;
   final bool calculateTaxDeduction;
+  final String? businessLicenseNumber;
+  final String? stateRegistrationNumber;
+  final String? foodHandlerPermitNumber;
+  final String? einOrTaxId;
+
 
   Restaurant({
     required this.id,
@@ -27,6 +32,10 @@ class Restaurant {
     this.lastYearRevenue,
     this.projectedGrowth,
     this.calculateTaxDeduction = true,
+    this.businessLicenseNumber,
+    this.stateRegistrationNumber,
+    this.foodHandlerPermitNumber,
+    this.einOrTaxId,
   });
 
   factory Restaurant.fromFirestore(DocumentSnapshot doc) {
@@ -44,6 +53,10 @@ class Restaurant {
       lastYearRevenue: (data['lastYearRevenue'] as num?)?.toDouble(),
       projectedGrowth: (data['projectedGrowth'] as num?)?.toDouble(),
       calculateTaxDeduction: data['calculateTaxDeduction'] ?? true,
+      businessLicenseNumber: data['businessLicenseNumber'],
+      stateRegistrationNumber: data['stateRegistrationNumber'],
+      foodHandlerPermitNumber: data['foodHandlerPermitNumber'],
+      einOrTaxId: data['einOrTaxId'],
     );
   }
 
@@ -60,6 +73,10 @@ class Restaurant {
       'lastYearRevenue': lastYearRevenue,
       'projectedGrowth': projectedGrowth,
       'calculateTaxDeduction': calculateTaxDeduction,
+      'businessLicenseNumber': businessLicenseNumber,
+      'stateRegistrationNumber': stateRegistrationNumber,
+      'foodHandlerPermitNumber': foodHandlerPermitNumber,
+      'einOrTaxId': einOrTaxId,
     };
   }
 
@@ -76,6 +93,10 @@ class Restaurant {
     double? lastYearRevenue,
     double? projectedGrowth,
     bool? calculateTaxDeduction,
+    String? businessLicenseNumber,
+    String? stateRegistrationNumber,
+    String? foodHandlerPermitNumber,
+    String? einOrTaxId,
   }) {
     return Restaurant(
       id: id ?? this.id,
@@ -90,6 +111,10 @@ class Restaurant {
       lastYearRevenue: lastYearRevenue ?? this.lastYearRevenue,
       projectedGrowth: projectedGrowth ?? this.projectedGrowth,
       calculateTaxDeduction: calculateTaxDeduction ?? this.calculateTaxDeduction,
+      businessLicenseNumber: businessLicenseNumber ?? this.businessLicenseNumber,
+      stateRegistrationNumber: stateRegistrationNumber ?? this.stateRegistrationNumber,
+      foodHandlerPermitNumber: foodHandlerPermitNumber ?? this.foodHandlerPermitNumber,
+      einOrTaxId: einOrTaxId ?? this.einOrTaxId,
     );
   }
 }

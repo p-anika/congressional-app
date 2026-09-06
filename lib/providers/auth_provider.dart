@@ -98,6 +98,9 @@ class AuthProvider extends ChangeNotifier {
     double lastYearRevenue = 0.0,
     double projectedGrowth = 0.0,
     bool calculateTaxDeduction = true,
+    String? businessLicenseNumber,
+    String? stateRegistrationNumber,
+    String? foodHandlerPermitNumber,
   }) async {
     final cred = await FirebaseService.signUp(email, password);
     final uid = cred.user!.uid;
@@ -123,6 +126,9 @@ class AuthProvider extends ChangeNotifier {
       lastYearRevenue: lastYearRevenue,
       projectedGrowth: projectedGrowth,
       calculateTaxDeduction: calculateTaxDeduction,
+      businessLicenseNumber: businessLicenseNumber,
+      stateRegistrationNumber: stateRegistrationNumber,
+      foodHandlerPermitNumber: foodHandlerPermitNumber,
     ));
   }
 
