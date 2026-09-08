@@ -39,8 +39,9 @@ class TaxReceiptService {
           pw.Text('Donation Summary for Your Accountant',
               style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 4),
+          // en dash (\u2013) replaced with a plain hyphen — Helvetica has no glyph for it
           pw.Text(
-              'Period: ${dateFmt.format(periodStart)} \u2013 ${dateFmt.format(periodEnd)}'),
+              'Period: ${dateFmt.format(periodStart)} - ${dateFmt.format(periodEnd)}'),
           pw.SizedBox(height: 16),
           pw.Text(restaurant.name,
               style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
@@ -93,14 +94,16 @@ class TaxReceiptService {
           pw.SizedBox(height: 4),
           pw.Text('Recipient organization EIN: _______________________'),
           pw.SizedBox(height: 4),
-          pw.Text('Recipient\'s written acknowledgment attached?  \u25a1 Yes   \u25a1 No'),
+          // box-checkbox glyph (\u25a1) replaced with plain bracket checkboxes
+          pw.Text('Recipient\'s written acknowledgment attached?  [ ] Yes   [ ] No'),
           pw.SizedBox(height: 4),
           pw.Text('Preparer name / date: _______________________'),
           pw.SizedBox(height: 16),
           pw.Text(
+            // section sign (\u00a7) -> "Section", multiplication sign (\u00d7) -> "x"
             'This document is a self-reported summary of donations logged in FoodRescue. It is not '
-            'IRS Form 8283, does not calculate the IRC \u00a7170(e)(3) enhanced-deduction amount (which '
-            'differs from simple cost \u00d7 portions), and does not substitute for the recipient '
+            'IRS Form 8283, does not calculate the IRC Section 170(e)(3) enhanced-deduction amount '
+            '(which differs from simple cost x portions), and does not substitute for the recipient '
             'organization\'s written acknowledgment required for that deduction. If total similar-item '
             'donations for the year exceed \$5,000, a qualified appraisal may be required. Consult a '
             'tax professional before filing.',
