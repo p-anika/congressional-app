@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <meta-data android:name="com.google.android.maps.v2.API_KEY"
-    android:value="AIzaSyA6Gu35YLvnIi8HvVjU5BzWl1cwzhcYJEg  "/>
+    android:value="AIzaSyD1ipEScnyIp9lNFSIC6nmxVPq6Fu0E2VI  "/>
     <application
         android:label="first_flutter_project"
         android:name="${applicationName}"
