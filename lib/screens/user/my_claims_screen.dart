@@ -8,6 +8,7 @@ import '../../models/food_listing.dart';
 import '../../models/restaurant.dart';
 import '../../services/firebase_service.dart';
 import '../../theme.dart';
+import '../../widgets/rescue_request_widgets.dart';
 
 class MyClaimsScreen extends StatelessWidget {
   const MyClaimsScreen({super.key});
@@ -54,16 +55,14 @@ class MyClaimsScreen extends StatelessWidget {
                 builder: (context, dSnap) {
                   final requests = dSnap.data ?? [];
                   if (requests.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text('No delivery requests yet.',
-                          style: TextStyle(color: AppColors.textSecondary)),
-                    );
+                    return RecipientRescueRequests(
+                        uid: uid, emptyText: 'No delivery requests yet.');
                   }
                   return Column(
-                    children: requests
-                        .map((r) => _DeliveryRequestCard(request: r))
-                        .toList(),
+                    children: [
+                      RecipientRescueRequests(uid: uid),
+                      ...requests.map((r) => _DeliveryRequestCard(request: r)),
+                    ],
                   );
                 },
               ),

@@ -9,6 +9,7 @@ import '../../providers/food_listing_provider.dart';
 import '../../services/firebase_service.dart';
 import '../../theme.dart';
 import '../../widgets/allergen_chips.dart';
+import '../../widgets/rescue_request_widgets.dart';
 
 class RestaurantListingsScreen extends StatefulWidget {
   const RestaurantListingsScreen({super.key});
@@ -599,6 +600,8 @@ class _RestaurantListingCard extends StatelessWidget {
                 );
               },
             ),
+            RestaurantRescueHandoffs(
+                restaurantId: listing.restaurantId, listingId: listing.id),
             if (listing.allergens.isNotEmpty) ...[
               const SizedBox(height: 8),
               AllergenChips(allergens: listing.allergens, small: true),

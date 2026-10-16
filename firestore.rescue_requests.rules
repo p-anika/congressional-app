@@ -1,0 +1,110 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Security rules for the rescueRequests delivery flow.
+//
+// THIS IS A FRAGMENT, NOT A COMPLETE RULES FILE. Paste the `match
+// /rescueRequests/{reqId} { ... }` block INSIDE your existing
+//   service cloud.firestore { match /databases/{database}/documents { ... } }
+// in the Firebase console (Firestore → Rules). Do not deploy this file on its
+// own — it would replace your other rules and lock out the rest of the app.
+//
+// Roles come from users/{uid}.role: 'user' = recipient, 'volunteer' = helper,
+// and a restaurant is whoever owns restaurants/{restaurantId}.ownerId.
+// ─────────────────────────────────────────────────────────────────────────────
+
+match /rescueRequests/{reqId} {
+  function signedIn() { return request.auth != null; }
+  function role() {
+    return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+  }
+  function ownsRestaurant(rid) {
+    return get(/databases/$(database)/documents/restaurants/$(rid)).data.ownerId
+        == request.auth.uid;
+  }
+  function isRecipient() { return resource.data.recipientId == request.auth.uid; }
+  function isHelper() { return resource.data.helperId == request.auth.uid; }
+  function moves(from, to) {
+    return resource.data.status == from && request.resource.data.status == to;
+  }
+  // Only these fields may change, and the step's timestamp must be the
+  // server time of this write (FieldValue.serverTimestamp()).
+  function onlyChanges(fields, stampField) {
+    return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields)
+        && request.resource.data[stampField] == request.time;
+  }
+
+  // Recipient, assigned helper, and the restaurant can read; any volunteer
+  // can read requests that are still open (no exact address on this doc).
+  allow read: if signedIn() && (
+      isRecipient()
+      || isHelper()
+      || (resource.data.status == 'open' && role() == 'volunteer')
+      || ownsRestaurant(resource.data.restaurantId));
+
+  allow create: if signedIn()
+      && role() == 'user'
+      && request.resource.data.recipientId == request.auth.uid
+      && request.resource.data.status == 'open'
+      && request.resource.data.helperId == null
+      && request.resource.data.createdAt == request.time;
+
+  allow update: if signedIn() && (
+      // HELPER: Accept (open -> claimed). Status check makes double-claim impossible.
+      (moves('open', 'claimed')
+        && role() == 'volunteer'
+        && resource.data.recipientId != request.auth.uid
+        && request.resource.data.helperId == request.auth.uid
+        && onlyChanges(['status', 'helperId', 'claimedAt'], 'claimedAt'))
+
+      // HELPER: Picked up (claimed -> pickup_pending_restaurant)
+      || (isHelper() && moves('claimed', 'pickup_pending_restaurant')
+        && onlyChanges(['status', 'pickupReportedAt'], 'pickupReportedAt'))
+
+      // RESTAURANT: Confirm handoff — the final say (-> picked_up)
+      || (ownsRestaurant(resource.data.restaurantId)
+        && moves('pickup_pending_restaurant', 'picked_up')
+        && onlyChanges(['status', 'pickedUpAt'], 'pickedUpAt'))
+
+      // RESTAURANT: Didn't happen (-> back to claimed)
+      || (ownsRestaurant(resource.data.restaurantId)
+        && moves('pickup_pending_restaurant', 'claimed')
+        && onlyChanges(['status', 'handoffRejectedAt'], 'handoffRejectedAt'))
+
+      // HELPER: Delivered (picked_up -> delivered_pending_recipient)
+      || (isHelper() && moves('picked_up', 'delivered_pending_recipient')
+        && onlyChanges(['status', 'deliveredAt'], 'deliveredAt'))
+
+      // RECIPIENT: Received (-> completed)
+      || (isRecipient() && moves('delivered_pending_recipient', 'completed')
+        && onlyChanges(['status', 'completedAt'], 'completedAt'))
+
+      // RECIPIENT: Didn't receive (-> disputed)
+      || (isRecipient() && moves('delivered_pending_recipient', 'disputed')
+        && onlyChanges(['status', 'disputedAt'], 'disputedAt'))
+
+      // RECIPIENT: Cancel, only before the food leaves the restaurant
+      || (isRecipient()
+        && resource.data.status in ['open', 'claimed']
+        && request.resource.data.status == 'cancelled'
+        && onlyChanges(['status', 'cancelledAt'], 'cancelledAt'))
+  );
+
+  allow delete: if false;
+
+  // Exact drop-off address + notes. Readable only by the recipient and by the
+  // helper who accepted, and only while that delivery is in progress.
+  match /private/{docId} {
+    function parent() {
+      return get(/databases/$(database)/documents/rescueRequests/$(reqId)).data;
+    }
+    allow read: if request.auth != null && (
+        parent().recipientId == request.auth.uid
+        || (parent().helperId == request.auth.uid
+            && parent().status in ['claimed', 'pickup_pending_restaurant',
+                                   'picked_up', 'delivered_pending_recipient']));
+    // Written in the same transaction as the parent create.
+    allow create: if request.auth != null
+        && getAfter(/databases/$(database)/documents/rescueRequests/$(reqId))
+             .data.recipientId == request.auth.uid;
+    allow update, delete: if false;
+  }
+}
