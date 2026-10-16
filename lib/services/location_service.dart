@@ -28,7 +28,7 @@ class LocationService {
   }
 
   static Future<Map<String, double>?> geocodeAddress(String address) async {
-    const apiKey = 'AIzaSyA6Gu35YLvnIi8HvVjU5BzWl1cwzhcYJEg';
+    const apiKey = 'AIzaSyD1ipEScnyIp9lNFSIC6nmxVPq6Fu0E2VI';
     final encoded = Uri.encodeComponent(address);
     final url =
         'https://maps.googleapis.com/maps/api/geocode/json?address=$encoded&key=$apiKey';
