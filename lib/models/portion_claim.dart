@@ -6,13 +6,13 @@ class PortionClaim {
   final String restaurantId;
   final String userId;
   final int quantity;
-  // Status flow for regular (in-person pickup) claims:
-  //   'pending'   — user claimed, awaiting restaurant confirmation
+  // status flow for in-person pickups:
+  //   'pending' — user claimed, awaiting restaurant confirmation
   //   'confirmed' — restaurant confirmed, user is coming to pick up
-  //   'declined'  — restaurant declined; portions returned to available pool
+  //   'declined' — restaurant declined; portions returned to available pool
   //   'delivered' — food handed over in person
-  // Status flow for delivery-based claims (created alongside a DeliveryRequest):
-  //   'claimed'   — delivery claim reserved
+  // status flow for delivery claims:
+  //   'claimed' — delivery claim reserved
   //   'completed' — delivery completed via completeDelivery()
   //   'cancelled' — delivery request was cancelled
   final String status;

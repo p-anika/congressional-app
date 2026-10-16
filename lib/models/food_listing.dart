@@ -5,17 +5,17 @@ class FoodListing {
   final String restaurantId;
   final String item;
   final String amount;
-  final int feedsPeople; // total portions in this listing
+  final int feedsPeople;
   final List<String> allergens;
   final List<String> contains;
   final bool isAvailable;
   final DateTime createdAt;
   final DateTime? expiresAt;
-  final double? cost; // market value per portion (for donation tracking)
+  final double? cost;
   final bool isCompleted;
   final DateTime? completedAt;
-  final int claimedCount;   // portions reserved (pending/confirmed claims), awaiting delivery
-  final int completedCount; // portions actually handed over
+  final int claimedCount;
+  final int completedCount;
 
   FoodListing({
     required this.id,

@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AppUser {
   final String id;
   final String email;
-  final String role; // "restaurant" | "user"
+  final String role;
   final List<String> allergies;
   final GeoPoint? location;
   final String phone;

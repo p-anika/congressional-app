@@ -185,7 +185,6 @@ class _ImpactScreenState extends State<ImpactScreen> {
 
             const SizedBox(height: 12),
 
-            // ── 1% floor status banner ───────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -242,7 +241,6 @@ class _ImpactScreenState extends State<ImpactScreen> {
             const SizedBox(height: 24),
           ],
 
-          // ── Donation value (always shown) ────────────────────────────
           _SectionHeader(icon: Icons.people, label: 'Food Donation Impact'),
           const SizedBox(height: 8),
           IntrinsicHeight(
@@ -358,8 +356,6 @@ class _ImpactScreenState extends State<ImpactScreen> {
       return;
     }
 
-    // Capture this dialog's own context so we can always close exactly
-    // this route, regardless of what else happens to the navigator stack.
     BuildContext? loadingDialogContext;
     showDialog(
       context: context,
@@ -388,9 +384,6 @@ class _ImpactScreenState extends State<ImpactScreen> {
 
       if (!mounted) return;
 
-      // layoutPdf opens the platform's native print/preview flow — reliable
-      // on both web and mobile, unlike sharePdf which can silently hang on
-      // web if the browser doesn't treat the call as a direct user gesture.
       await Printing.layoutPdf(
         onLayout: (_) async => bytes,
         name: 'donation_summary_${DateFormat('yyyyMMdd').format(range.start)}'

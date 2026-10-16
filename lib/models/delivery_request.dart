@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class DeliveryRequest {
   final String id;
   final String listingId;
-  final String claimId; // linked PortionClaim reserving the portion(s)
+  final String claimId;
   final String restaurantId;
   final String restaurantName;
   final String item;
@@ -15,7 +15,7 @@ class DeliveryRequest {
   final String pickupAddress;
   final double dropoffLat;
   final double dropoffLng;
-  final String status; // 'pending' | 'accepted' | 'delivered' | 'cancelled'
+  final String status;
   final String? volunteerId;
   final DateTime requestedAt;
   final DateTime? acceptedAt;
