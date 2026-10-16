@@ -119,12 +119,15 @@ class RescueDropoff {
   final double? lat;
   final double? lng;
   final String notes; // apartment #, buzzer, number of people, etc.
+  // True when lat/lng are only the city/zip center (exact address not found).
+  final bool locationApproximate;
 
   RescueDropoff({
     required this.address,
     this.lat,
     this.lng,
     this.notes = '',
+    this.locationApproximate = false,
   });
 
   bool get hasCoordinates => lat != null && lng != null;
@@ -136,6 +139,7 @@ class RescueDropoff {
       lat: (data['lat'] as num?)?.toDouble(),
       lng: (data['lng'] as num?)?.toDouble(),
       notes: data['notes'] ?? '',
+      locationApproximate: data['locationApproximate'] ?? false,
     );
   }
 
@@ -145,6 +149,7 @@ class RescueDropoff {
       'lat': lat,
       'lng': lng,
       'notes': notes,
+      'locationApproximate': locationApproximate,
     };
   }
 }

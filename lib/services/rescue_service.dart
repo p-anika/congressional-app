@@ -309,13 +309,23 @@ class RescueService {
   /// Best-effort lookup of a typed address. Returns null on any failure
   /// (API disabled, no network, not found) so the request can still be
   /// created with just the address text.
-  static Future<({double lat, double lng})?> tryGeocode(String address) async {
+  static Future<({double lat, double lng, bool approximate})?> tryGeocode(
+      String address) async {
     try {
+      // Allows for up to 4 rate-limited OpenStreetMap attempts (~1 s apart).
       final coords = await LocationService.geocodeAddress(address)
-          .timeout(const Duration(seconds: 8));
-      if (coords == null) return null;
-      return (lat: coords['lat']!, lng: coords['lng']!);
-    } catch (_) {
+          .timeout(const Duration(seconds: 20));
+      if (coords == null) {
+        debugPrint('Geocoding failed for "$address" — saving address text only.');
+        return null;
+      }
+      return (
+        lat: coords['lat']!,
+        lng: coords['lng']!,
+        approximate: coords['approximate'] == 1.0,
+      );
+    } catch (e) {
+      debugPrint('Geocoding error for "$address": $e — saving address text only.');
       return null;
     }
   }

@@ -206,7 +206,8 @@ void main() {
       // exactly the failure case we want to cover.
       await tester.runAsync(() async {
         await tester.tap(find.text('Request'));
-        await Future<void>.delayed(const Duration(seconds: 1));
+        // Up to 4 rate-limited OpenStreetMap attempts, ~1.1 s apart.
+        await Future<void>.delayed(const Duration(seconds: 6));
       });
       await tester.pumpAndSettle();
 

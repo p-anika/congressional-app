@@ -240,8 +240,13 @@ class _RescueDeliveryLocationDialogState
       } else {
         // Geocoding is optional: if it fails, save the address text alone.
         final coords = await RescueService.tryGeocode(typed);
+        // Always save the original typed address (with suite/unit).
         dropoff = RescueDropoff(
-            address: typed, lat: coords?.lat, lng: coords?.lng, notes: notes);
+            address: typed,
+            lat: coords?.lat,
+            lng: coords?.lng,
+            notes: notes,
+            locationApproximate: coords?.approximate ?? false);
       }
       await widget.onSubmit(dropoff);
       if (mounted) Navigator.pop(context, true);

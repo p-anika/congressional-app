@@ -426,8 +426,12 @@ class DeliveryInstructions extends StatelessWidget {
               ElevatedButton.icon(
                 icon: const Icon(Icons.directions),
                 label: const Text('Get directions to recipient'),
+                // Approximate coords are just the city center, so navigate
+                // by the original address text instead.
                 onPressed: () => openRescueDirections(context,
-                    lat: d.lat, lng: d.lng, address: d.address),
+                    lat: d.locationApproximate ? null : d.lat,
+                    lng: d.locationApproximate ? null : d.lng,
+                    address: d.address),
               ),
           ],
         ),
