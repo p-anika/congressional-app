@@ -4,7 +4,7 @@ class MealPurchase {
   final String id;
   final String listingId;
   final String restaurantId;
-  final String volunteerId; // buyer's uid — a volunteer OR a self-buying homeless user
+  final String volunteerId;
   final bool isSelfPurchase;
   final String item;
   final int portions;

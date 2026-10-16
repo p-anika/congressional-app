@@ -11,8 +11,8 @@ class FoodListingProvider extends ChangeNotifier {
 
   List<FoodListing> get myListings => _myListings;
 
-  /// Only listings that still have at least one claimable portion.
-  /// Exhausted listings (availablePortions == 0) are hidden from user-facing views.
+  /// only listings that still have at least one claimable portion
+  /// exhausted listings (availablePortions == 0) hidden from user-facing views
   List<FoodListing> get allListings =>
       _allListings.where((l) => l.availablePortions > 0).toList();
 
@@ -24,8 +24,6 @@ class FoodListingProvider extends ChangeNotifier {
 
   void listenToMyListings(String restaurantId) {
     _myListingsSub?.cancel();
-    // Restaurant management view shows only active (isAvailable=true) listings.
-    // Soft-deleting sets isAvailable=false which removes the item from this stream.
     _myListingsSub =
         FirebaseService.listingsByRestaurant(restaurantId).listen((list) {
       _myListings = list;

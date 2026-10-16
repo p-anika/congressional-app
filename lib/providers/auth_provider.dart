@@ -40,7 +40,6 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _resolveUserDoc(String uid) async {
-    // One-time GET resolves immediately without the web stream's initial null
     try {
       final appUser = await FirebaseService.getUserDocOnce(uid);
       if (_disposed) return;
@@ -57,8 +56,6 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
 
-    // Stream subscription for real-time updates and signup-race recovery
-    // (doc may not exist yet at GET time when signup just created the auth user)
     _userSub = FirebaseService.userStream(uid).listen((appUser) {
       if (_disposed) return;
       if (appUser != null) {
@@ -73,7 +70,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     });
 
-    // Safety net: force-resolve after 8 s so UI never gets permanently stuck
+    // force-resolve after 8 sec so UI never permanently stuck
     Future.delayed(const Duration(seconds: 8), () {
       if (_disposed || !_loading) return;
       debugPrint('AuthProvider: safety timeout — forcing _loading = false');
@@ -177,7 +174,7 @@ class AuthProvider extends ChangeNotifier {
       email: email,
       phone: phone,
       organization: organization,
-      isApproved: false, // reviewed by you later, like restaurant isVerified
+      isApproved: false,
     ));
   }
 

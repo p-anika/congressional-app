@@ -185,7 +185,6 @@ class _ImpactScreenState extends State<ImpactScreen> {
 
             const SizedBox(height: 12),
 
-            // ── 1% floor status banner ───────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -242,7 +241,6 @@ class _ImpactScreenState extends State<ImpactScreen> {
             const SizedBox(height: 24),
           ],
 
-          // ── Donation value (always shown) ────────────────────────────
           _SectionHeader(icon: Icons.people, label: 'Food Donation Impact'),
           const SizedBox(height: 8),
           IntrinsicHeight(
@@ -358,11 +356,14 @@ class _ImpactScreenState extends State<ImpactScreen> {
       return;
     }
 
-    // Immediate visual feedback while the PDF is generated.
+    BuildContext? loadingDialogContext;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) {
+        loadingDialogContext = ctx;
+        return const Center(child: CircularProgressIndicator());
+      },
     );
 
     try {
@@ -371,19 +372,28 @@ class _ImpactScreenState extends State<ImpactScreen> {
         completedListings: _allListings,
         periodStart: range.start,
         periodEnd: range.end,
+      ).timeout(
+        const Duration(seconds: 20),
+        onTimeout: () => throw Exception('PDF generation timed out. Please try again.'),
       );
 
+      if (loadingDialogContext != null && Navigator.canPop(loadingDialogContext!)) {
+        Navigator.pop(loadingDialogContext!);
+      }
+      loadingDialogContext = null;
+
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // close the spinner
 
-      final fileName =
-          'donation_summary_${DateFormat('yyyyMMdd').format(range.start)}'
-          '_${DateFormat('yyyyMMdd').format(range.end)}.pdf';
-
-      await Printing.sharePdf(bytes: bytes, filename: fileName);
+      await Printing.layoutPdf(
+        onLayout: (_) async => bytes,
+        name: 'donation_summary_${DateFormat('yyyyMMdd').format(range.start)}'
+            '_${DateFormat('yyyyMMdd').format(range.end)}.pdf',
+      );
     } catch (e) {
+      if (loadingDialogContext != null && Navigator.canPop(loadingDialogContext!)) {
+        Navigator.pop(loadingDialogContext!);
+      }
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // close the spinner
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not generate the summary: $e')),
       );

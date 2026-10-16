@@ -1,8 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Status values for the `status` field of a rescueRequests doc.
-//   open -> claimed -> pickup_pending_restaurant -> picked_up
-//        -> delivered_pending_recipient -> completed   (+ cancelled, disputed)
+
 class RescueStatus {
   static const open = 'open';
   static const claimed = 'claimed';
@@ -13,7 +11,6 @@ class RescueStatus {
   static const cancelled = 'cancelled';
   static const disputed = 'disputed';
 
-  // Statuses where a helper is actively working the delivery.
   static const active = [
     claimed,
     pickupPendingRestaurant,
@@ -22,14 +19,13 @@ class RescueStatus {
   ];
 }
 
-/// A recipient's request for a helper to bring food from a restaurant listing.
-/// The exact drop-off address lives in [RescueDropoff] (a private subdoc) so
-/// only the recipient and the helper who accepts can read it.
+// a recipient's request for a helper to bring food from a restaurant listing
+// exact drop-off address in [RescueDropoff] so only the recipient and the helper can read it
 class RescueRequest {
   final String id;
-  final String code; // short human-readable number, e.g. "1234"
+  final String code;
   final String listingId;
-  final String claimId; // linked PortionClaim reserving the portion(s)
+  final String claimId;
   final String restaurantId;
   final String restaurantName;
   final String restaurantAddress;
@@ -40,9 +36,7 @@ class RescueRequest {
   final String recipientId;
   final String? helperId;
   final String status;
-  // Rounded to ~1 km so helpers browsing open requests can judge distance
-  // without seeing where the recipient actually is. Null if the drop-off
-  // address couldn't be geocoded.
+  // Rounded to ~1 km so helpers browsing open requests can judge distance without seeing where the recipient actually is
   final double? approxLat;
   final double? approxLng;
   final DateTime? createdAt;
@@ -119,9 +113,7 @@ class RescueRequest {
   }
 }
 
-/// Private drop-off details: rescueRequests/{id}/private/dropoff
-/// lat/lng are null when the typed address couldn't be geocoded; the
-/// address text is always saved.
+
 class RescueDropoff {
   final String address;
   final double? lat;

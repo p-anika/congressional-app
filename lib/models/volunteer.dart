@@ -6,7 +6,7 @@ class Volunteer {
   final String email;
   final String phone;
   final String organization; // may be empty
-  final bool isApproved;     // admin-reviewed, like Restaurant.isVerified
+  final bool isApproved; // admin-reviewed
 
   Volunteer({
     required this.id,
@@ -36,7 +36,7 @@ class Volunteer {
       'phone': phone,
       'organization': organization,
       'isApproved': isApproved,
-      'ownerId': id, // set to uid when creating, see below
+      'ownerId': id
     };
   }
 }
