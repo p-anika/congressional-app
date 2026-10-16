@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/delivery_provider.dart';
 import '../../services/location_service.dart';
 import '../../theme.dart';
+import '../../widgets/delivery_instructions_sheet.dart';
 
 class VolunteerDeliveryRequestsScreen extends StatefulWidget {
   const VolunteerDeliveryRequestsScreen({super.key});
@@ -143,7 +144,9 @@ class _VolunteerDeliveryRequestsScreenState
               stream: deliveryProvider.myAcceptedDeliveries(uid),
               builder: (context, snap) {
                 final myDeliveries = snap.data ?? [];
-                if (myDeliveries.isEmpty) return const SizedBox.shrink();
+                if (myDeliveries.isEmpty) {
+                  return VolunteerActiveRescues(uid: uid, showHeader: true);
+                }
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -158,6 +161,7 @@ class _VolunteerDeliveryRequestsScreenState
                           onComplete: () => _complete(r),
                           onDirections: () => _openDirections(r),
                         )),
+                    VolunteerActiveRescues(uid: uid),
                     const SizedBox(height: 20),
                   ],
                 );
@@ -175,21 +179,19 @@ class _VolunteerDeliveryRequestsScreenState
               }
               final requests = snap.data!;
               if (requests.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('No delivery requests right now.',
-                      style: TextStyle(color: AppColors.textSecondary)),
-                );
+                return VolunteerOpenRescues(
+                    uid: uid ?? '', emptyText: 'No delivery requests right now.');
               }
               return Column(
-                children: requests
-                    .map((r) => _DeliveryCard(
-                          request: r,
-                          estimate: _estimate(r),
-                          isMine: false,
-                          onAccept: () => _accept(r),
-                        ))
-                    .toList(),
+                children: [
+                  VolunteerOpenRescues(uid: uid ?? ''),
+                  ...requests.map((r) => _DeliveryCard(
+                        request: r,
+                        estimate: _estimate(r),
+                        isMine: false,
+                        onAccept: () => _accept(r),
+                      )),
+                ],
               );
             },
           ),

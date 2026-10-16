@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 import '../models/food_listing.dart';
 import '../providers/auth_provider.dart';
 import '../providers/food_listing_provider.dart';
-import '../providers/delivery_provider.dart';
-import '../providers/user_provider.dart';
+import '../services/rescue_service.dart';
 import '../theme.dart';
 import 'allergen_chips.dart';
 import 'quantity_dialog.dart';
+import 'rescue_request_widgets.dart';
 
 class FoodListingCard extends StatelessWidget {
   final FoodListing listing;
@@ -49,60 +49,30 @@ class FoodListingCard extends StatelessWidget {
   }
 
   Future<void> _requestDelivery(BuildContext context, int max) async {
-    final userProvider = context.read<UserProvider>();
-    if (userProvider.userLat == null || userProvider.userLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Set your location on the My Info tab first so a volunteer can find you.'),
-      ));
-      return;
-    }
     final qty = await showQuantityDialog(context,
         title: 'How many portions should be delivered?', max: max);
     if (qty == null) return;
     final uid = context.read<AuthProvider>().firebaseUser?.uid;
     if (uid == null || !context.mounted) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Request Delivery'),
-        content: Text(
-          'A volunteer will pick up $qty portion${qty == 1 ? '' : 's'} of '
-          '"${listing.item}" and bring it to your saved location. Continue?',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Request')),
-        ],
+    // Popup asks for delivery address / current location + notes, and
+    // submitting it creates the request.
+    final created = await showRescueDeliveryPopup(
+      context,
+      itemName: listing.item,
+      quantity: qty,
+      onSubmit: (dropoff) => RescueService.createRequest(
+        listing: listing,
+        recipientId: uid,
+        quantity: qty,
+        dropoff: dropoff,
       ),
     );
-    if (confirmed != true || !context.mounted) return;
-
-    try {
-      await context.read<DeliveryProvider>().requestDelivery(
-            listing: listing,
-            userId: uid,
-            quantity: qty,
-            userLat: userProvider.userLat!,
-            userLng: userProvider.userLng!,
-            userPhone: userProvider.user?.phone,
-          );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              'Delivery requested for $qty portion${qty == 1 ? '' : 's'}. A volunteer will be notified.'),
-        ));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
-      }
+    if (created && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'Delivery requested for $qty portion${qty == 1 ? '' : 's'}. A volunteer will be notified.'),
+      ));
     }
   }
 
