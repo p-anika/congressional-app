@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
-
+// k
 class GoodSamaritanInfoCard extends StatelessWidget {
   const GoodSamaritanInfoCard({super.key});
 
